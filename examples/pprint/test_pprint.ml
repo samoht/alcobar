@@ -23,17 +23,18 @@ let check_doc (s, d) =
   let w = 40 in
   ToBuffer.pretty 1.0 w b d;
   let text = Bytes.to_string (Buffer.to_bytes b) in
-  let ws = Str.regexp "[ \t\n\r]*" in
-  (* Printf.printf "doc2{\n%s\n}%!" text; *)
-  let del_ws = Str.global_replace ws "" in
-  (*  Printf.printf "[%s] = [%s]\n%!" (del_ws s) (del_ws text);*)
-  Str.split (Str.regexp "\n") text |> List.iter (fun s ->
-    let mspace = Str.regexp "[^ ] " in
+  let ws = Re.(compile (rep (set " \t\n\r"))) in
+  let del_ws s = Re.replace_string ws ~by:"" s in
+  let mspace = Re.(compile (seq [compl [char ' ']; char ' '])) in
+  String.split_on_char '\n' text |> List.iter (fun s ->
     if String.length s > w then
-      match Str.search_forward mspace s w with
-      | _ -> assert false
-      | exception Not_found -> ());
+      if Re.execp ~pos:w mspace s then assert false);
   check_eq (del_ws s) (del_ws text)
 
-let () =
-  add_test ~name:"pprint" [doc] check_doc
+let suite =
+  ("pprint",
+   [
+     test_case "pprint" [doc] check_doc;
+   ])
+
+let () = run "crowbar" [ suite ]

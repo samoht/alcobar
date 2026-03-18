@@ -8,11 +8,15 @@ let fpath =
     with
       Invalid_argument _ -> bad_test ())
 
+let suite =
+  ("fpath",
+   [
+     test_case "segs" [fpath] @@ fun p ->
+     let np = normalize p in
+     assert (is_dir_path p = is_dir_path np);
+     assert (is_file_path p = is_file_path np);
+     assert (filename p = filename np);
+     check_eq ~eq:equal p (v @@ (fst @@ split_volume p) ^ (String.concat ~sep:dir_sep (segs p)));
+   ])
 
-let () =
-  add_test ~name:"segs" [fpath] @@ fun p ->
-    let np = normalize p in
-    assert (is_dir_path p = is_dir_path np);
-    assert (is_file_path p = is_file_path np);
-    assert (filename p = filename np);
-    check_eq ~eq:equal p (v @@ (fst @@ split_volume p) ^ (String.concat ~sep:dir_sep (segs p)))
+let () = run "crowbar" [ suite ]

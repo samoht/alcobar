@@ -42,6 +42,11 @@ let map_gen : t gen = fix (fun map_gen -> choose [
     (l' @ List.map (fun (k,v) -> k,v+42) r',
      Map.union (fun k a b -> assert false) l (Map.map (fun v -> v + 42) r)))])
 
-let () =
-  add_test ~name:"map" [map_gen] @@ fun m ->
-    check (check_map m)
+let suite =
+  ("map",
+   [
+     test_case "map" [map_gen] @@ fun m ->
+     check (check_map m);
+   ])
+
+let () = run "crowbar" [ suite ]

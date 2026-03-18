@@ -1,4 +1,4 @@
-open Crowbar
+open Alcobar
 
 let ident = choose [const "a"; const "b"; const "c"]
 let elem_name = map [ident] (fun s -> ("", s))
@@ -36,11 +36,11 @@ let pp_xml ppf xml =
 let xml = with_printer pp_xml xml
 
 let suite =
-  ("crowbar",
+  ("alcobar",
    [
      test_case "xmldiff" [xml; xml] @@ fun xml1 xml2 ->
      let (patch, xml3) = Xmldiff.diff_with_final_tree xml1 xml2 in
      check_eq ~pp:pp_xml xml2 xml3;
    ])
 
-let () = run "crowbar" [ suite ]
+let () = run "alcobar" [ suite ]

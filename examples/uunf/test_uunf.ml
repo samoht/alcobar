@@ -1,4 +1,4 @@
-open Crowbar
+open Alcobar
 
 let uchar =
   map [int32] (fun n ->
@@ -69,4 +69,4 @@ let suite =
           List.iter (fun s' -> check_eq ~pp:pp_unicode s s') eqs);
    ])
 
-let () = run "crowbar" [ suite ]
+let () = run "alcobar" [ suite ]

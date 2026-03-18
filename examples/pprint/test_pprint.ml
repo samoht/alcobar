@@ -1,5 +1,5 @@
 open PPrint
-open Crowbar
+open Alcobar
 type t = (string * PPrint.document)
 let doc = fix (fun doc -> choose [
   const ("", empty);
@@ -37,4 +37,4 @@ let suite =
      test_case "pprint" [doc] check_doc;
    ])
 
-let () = run "crowbar" [ suite ]
+let () = run "alcobar" [ suite ]

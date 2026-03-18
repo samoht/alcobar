@@ -1,4 +1,4 @@
-open Crowbar
+open Alcobar
 
 module C = CalendarLib.Calendar.Precise
 
@@ -30,4 +30,4 @@ let suite =
      check_eq ~pp:pp_time ~eq:C.equal (C.add t1 (C.precise_sub t2 t1)) t2;
    ])
 
-let () = run "crowbar" [ suite ]
+let () = run "alcobar" [ suite ]

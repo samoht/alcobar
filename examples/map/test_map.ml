@@ -1,4 +1,4 @@
-open Crowbar
+open Alcobar
 
 module Map = Map.Make (struct
   type t = int
@@ -49,4 +49,4 @@ let suite =
      check (check_map m);
    ])
 
-let () = run "crowbar" [ suite ]
+let () = run "alcobar" [ suite ]

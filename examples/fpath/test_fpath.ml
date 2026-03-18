@@ -1,4 +1,4 @@
-open Crowbar
+open Alcobar
 open Astring
 open Fpath
 let fpath =
@@ -19,4 +19,4 @@ let suite =
      check_eq ~eq:equal p (v @@ (fst @@ split_volume p) ^ (String.concat ~sep:dir_sep (segs p)));
    ])
 
-let () = run "crowbar" [ suite ]
+let () = run "alcobar" [ suite ]

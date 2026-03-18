@@ -1,7 +1,10 @@
 (* Fix for OCaml 5.0 *)
 let () = Random.init 42
 
-type src = Random of Random.State.t | Fd of Unix.file_descr
+type src =
+  | Random of Random.State.t
+  | Fd of Unix.file_descr
+  | Recording of Random.State.t * Buffer.t
 type state =
   {
     chan : src;
@@ -120,6 +123,13 @@ let get_data chan buf off len =
        Bytes.set buf i (Char.chr (Random.State.bits rand land 0xff))
      done;
      len - off
+  | Recording (rand, record) ->
+     for i = off to off + len - 1 do
+       let c = Char.chr (Random.State.bits rand land 0xff) in
+       Bytes.set buf i c;
+       Buffer.add_char record c
+     done;
+     len - off
   | Fd ch ->
      Unix.read ch buf off len
 
@@ -231,9 +241,9 @@ let choose_int n state =
 
 let range ?(min=0) n =
   if n <= 0 then
-    raise (Invalid_argument "Crowbar.range: argument n must be positive");
+    raise (Invalid_argument "Alcobar.range: argument n must be positive");
   if min < 0 then
-    raise (Invalid_argument "Crowbar.range: argument min must be positive or null");
+    raise (Invalid_argument "Alcobar.range: argument min must be positive or null");
   with_printer pp_int (primitive (fun s -> min + choose_int n s) min)
 
 let uchar : Uchar.t gen =
@@ -451,12 +461,12 @@ let prng_state_of_seed seed =
 let src_of_seed seed =
   Random (prng_state_of_seed seed)
 
-(* {1 Property-testing runner (Alcotest)} *)
+(* {1 Property-testing runner} *)
 
 type config = {
   seed : int64 option;
   repeat : int;
-  verbose_crowbar : bool;
+  verbose_alcobar : bool;
   infinite : bool;
   timeout : int;
   budget : float;
@@ -465,7 +475,7 @@ type config = {
 exception Timeout
 
 let default_timeout =
-  match Sys.getenv_opt "CROWBAR_TIMEOUT" with
+  match Sys.getenv_opt "ALCOBAR_TIMEOUT" with
   | Some s -> (try int_of_string s with _ -> 2)
   | None -> 2
 
@@ -479,22 +489,22 @@ let config_term =
     Arg.(value & opt int 5000 & info ["r"; "repeat"] ~doc) in
   let verbose_flag =
     let doc = "Print information on each passing test." in
-    Arg.(value & flag & info ["crowbar-verbose"] ~doc) in
+    Arg.(value & flag & info ["alcobar-verbose"] ~doc) in
   let infinite =
     let doc = "Run until a failure is found." in
     Arg.(value & flag & info ["i"; "infinite"] ~doc) in
   let timeout =
     let doc =
       "Per-test timeout in seconds (0 to disable). \
-       Can also be set via CROWBAR_TIMEOUT." in
+       Can also be set via ALCOBAR_TIMEOUT." in
     Arg.(value & opt int default_timeout & info ["timeout"] ~doc) in
   let budget =
     let doc =
       "Total time budget per test in seconds (0 to disable). \
        Stops iterating when the budget is exhausted." in
     Arg.(value & opt float 2. & info ["budget"] ~docv:"SECONDS" ~doc) in
-  Term.(const (fun seed repeat verbose_crowbar infinite timeout budget ->
-    { seed; repeat; verbose_crowbar; infinite; timeout; budget })
+  Term.(const (fun seed repeat verbose_alcobar infinite timeout budget ->
+    { seed; repeat; verbose_alcobar; infinite; timeout; budget })
   $ seed $ repeat $ verbose_flag $ infinite $ timeout $ budget)
 
 let with_timeout timeout f =
@@ -535,7 +545,7 @@ let run_property_test (Test { gens; f; _ }) config =
     match classify_status status with
     | `Pass ->
       incr npass;
-      if config.verbose_crowbar then
+      if config.verbose_alcobar then
         Printf.printf "  pass %d\n%!" !npass
     | `Bad -> ()
     | `Fail -> failure := Some status
@@ -590,6 +600,45 @@ let detect_afl_file () =
     else None
   else None
 
+let detect_gen_corpus () =
+  let n = Array.length Sys.argv in
+  let rec find i =
+    if i >= n then None
+    else if Sys.argv.(i) = "--gen-corpus" && i + 1 < n then Some Sys.argv.(i + 1)
+    else find (i + 1)
+  in
+  find 1
+
+let generate_corpus dir tests =
+  (try Unix.mkdir dir 0o755 with Unix.Unix_error (Unix.EEXIST, _, _) -> ());
+  let seedsrc = prng_state_of_seed 42L in
+  let count = ref 0 in
+  let seeds_per_test = 5 in
+  let max_attempts = 200 in
+  List.iter (fun (Test { gens; f; _ }) ->
+    let good = ref 0 in
+    let attempts = ref 0 in
+    while !good < seeds_per_test && !attempts < max_attempts do
+      incr attempts;
+      let s = Random.State.int64 seedsrc Int64.max_int in
+      let record = Buffer.create 256 in
+      let state = { chan = Recording (prng_state_of_seed s, record);
+                    buf = Bytes.make 256 '0';
+                    offset = 0; len = 0 } in
+      let status = run_once gens f state in
+      match classify_status status with
+      | `Pass ->
+        let filename = Printf.sprintf "%s/seed_%03d" dir !count in
+        let oc = open_out_bin filename in
+        Buffer.output_buffer oc record;
+        close_out oc;
+        incr count;
+        incr good
+      | _ -> ()
+    done
+  ) tests;
+  Printf.printf "gen-corpus: wrote %d seed files to %s/\n" !count dir
+
 type test_case =
   | TC : { name : string; gens : ('f, unit) gens; f : 'f } -> test_case
 
@@ -604,9 +653,12 @@ let run name suites =
           tcs)
       suites
   in
-  match detect_afl_file () with
-  | Some file -> run_afl tests file
-  | None -> run_with_alcotest name tests
+  match detect_gen_corpus () with
+  | Some dir -> generate_corpus dir tests
+  | None ->
+    match detect_afl_file () with
+    | Some file -> run_afl tests file
+    | None -> run_with_alcotest name tests
 
 module Syntax = struct
   let ( let* ) = dynamic_bind

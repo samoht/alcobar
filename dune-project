@@ -1,10 +1,9 @@
-(lang dune 2.9)
+(lang dune 3.21)
 (name alcobar)
 
-(formatting disabled)
 (generate_opam_files true)
 
-(source (github stedolan/crowbar))
+(source (github samoht/alcobar))
 (license MIT)
 (authors "Stephen Dolan <stephen.dolan@cl.cam.ac.uk>")
 (maintainers "Thomas Gazagnaire <thomas@gazagnaire.org>")

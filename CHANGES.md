@@ -16,6 +16,7 @@ Fork of Crowbar, renamed to Alcobar.
 - Per-test time budget (`--budget SECONDS`); iteration stops when the
   budget is exhausted. Defaults to 2 seconds. Use `--budget 0` to disable.
 - README rewritten for the alcobar fork.
+- GitHub Actions CI on push and pull request.
 
 v0.2.1 (04 March 2022)
 ---------------------

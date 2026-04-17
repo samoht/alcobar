@@ -9,6 +9,8 @@ Fork of Crowbar, renamed to Alcobar.
   AFL mode is preserved by detecting a file argument. Examples now build
   as executables with an explicit `runtest` rule, so test binaries can
   be invoked directly with CLI flags.
+- `--gen-corpus DIR` flag generates seed corpus files from passing
+  test runs, capturing the exact bytes consumed by generators.
 
 v0.2.1 (04 March 2022)
 ---------------------

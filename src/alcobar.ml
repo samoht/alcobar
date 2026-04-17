@@ -1,7 +1,10 @@
 (* Fix for OCaml 5.0 *)
 let () = Random.init 42
 
-type src = Random of Random.State.t | Fd of Unix.file_descr
+type src =
+  | Random of Random.State.t
+  | Fd of Unix.file_descr
+  | Recording of Random.State.t * Buffer.t
 
 type state = {
   chan : src;
@@ -133,6 +136,13 @@ let get_data chan buf off len =
   | Random rand ->
       for i = off to off + len - 1 do
         Bytes.set buf i (Char.chr (Random.State.bits rand land 0xff))
+      done;
+      len - off
+  | Recording (rand, record) ->
+      for i = off to off + len - 1 do
+        let c = Char.chr (Random.State.bits rand land 0xff) in
+        Bytes.set buf i c;
+        Buffer.add_char record c
       done;
       len - off
   | Fd ch -> Unix.read ch buf off len
@@ -605,6 +615,52 @@ let detect_afl_file () =
     if Sys.file_exists last then Some last else None
   else None
 
+let detect_gen_corpus () =
+  let n = Array.length Sys.argv in
+  let rec find i =
+    if i >= n then None
+    else if Sys.argv.(i) = "--gen-corpus" && i + 1 < n then
+      Some Sys.argv.(i + 1)
+    else find (i + 1)
+  in
+  find 1
+
+let generate_corpus dir tests =
+  (try Unix.mkdir dir 0o755 with Unix.Unix_error (Unix.EEXIST, _, _) -> ());
+  let seedsrc = prng_state_of_seed 42L in
+  let count = ref 0 in
+  let seeds_per_test = 5 in
+  let max_attempts = 200 in
+  List.iter
+    (fun (Test { gens; f; _ }) ->
+      let good = ref 0 in
+      let attempts = ref 0 in
+      while !good < seeds_per_test && !attempts < max_attempts do
+        incr attempts;
+        let s = Random.State.int64 seedsrc Int64.max_int in
+        let record = Buffer.create 256 in
+        let state =
+          {
+            chan = Recording (prng_state_of_seed s, record);
+            buf = Bytes.make 256 '0';
+            offset = 0;
+            len = 0;
+          }
+        in
+        let status = run_once gens f state in
+        match classify_status status with
+        | `Pass ->
+            let filename = Printf.sprintf "%s/seed_%03d" dir !count in
+            let oc = open_out_bin filename in
+            Buffer.output_buffer oc record;
+            close_out oc;
+            incr count;
+            incr good
+        | _ -> ()
+      done)
+    tests;
+  Printf.printf "gen-corpus: wrote %d seed files to %s/\n" !count dir
+
 type test_case =
   | TC : { name : string; gens : ('f, unit) gens; f : 'f } -> test_case
 
@@ -620,9 +676,12 @@ let run name suites =
           tcs)
       suites
   in
-  match detect_afl_file () with
-  | Some file -> run_afl tests file
-  | None -> run_with_alcotest name tests
+  match detect_gen_corpus () with
+  | Some dir -> generate_corpus dir tests
+  | None -> (
+      match detect_afl_file () with
+      | Some file -> run_afl tests file
+      | None -> run_with_alcotest name tests)
 
 module Syntax = struct
   let ( let* ) = dynamic_bind

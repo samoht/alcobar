@@ -1,4 +1,5 @@
 (test
  (name test_map)
- (flags (:standard -w -27))
+ (flags
+  (:standard -w -27))
  (libraries alcobar))

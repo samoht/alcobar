@@ -1,7 +1,6 @@
 (lang dune 2.9)
 (name alcobar)
 
-(formatting disabled)
 (generate_opam_files true)
 
 (source (github samoht/alcobar))

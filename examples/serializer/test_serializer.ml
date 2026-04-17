@@ -1,22 +1,23 @@
 open Alcobar
-
 module S = Serializer
 
 type any_ty = Any : 'a S.ty -> any_ty
 
 let ty_gen =
-  with_printer (fun ppf (Any t)-> S.pp_ty ppf t) @@
-  fix (fun ty_gen -> choose [
-    const (Any S.Int);
-    const (Any S.Bool);
-    map [ty_gen; ty_gen] (fun (Any ta) (Any tb) ->
-      Any (S.Prod (ta, tb)));
-    map [ty_gen] (fun (Any t) -> Any (List t));
-  ])
+  with_printer (fun ppf (Any t) -> S.pp_ty ppf t)
+  @@ fix (fun ty_gen ->
+      choose
+        [
+          const (Any S.Int);
+          const (Any S.Bool);
+          map [ ty_gen; ty_gen ] (fun (Any ta) (Any tb) ->
+              Any (S.Prod (ta, tb)));
+          map [ ty_gen ] (fun (Any t) -> Any (List t));
+        ])
 
-let prod_gen ga gb = map [ga; gb] (fun va vb -> (va, vb))
+let prod_gen ga gb = map [ ga; gb ] (fun va vb -> (va, vb))
 
-let rec gen_of_ty : type a . a S.ty -> a gen = function
+let rec gen_of_ty : type a. a S.ty -> a gen = function
   | S.Int -> int
   | S.Bool -> bool
   | S.Prod (ta, tb) -> prod_gen (gen_of_ty ta) (gen_of_ty tb)
@@ -29,13 +30,14 @@ type pair = Pair : 'a S.ty * 'a -> pair
    be expressed with [map], it requires [dynamic_bind]. *)
 let pair_gen : pair gen =
   dynamic_bind ty_gen @@ fun (Any t) ->
-  map [gen_of_ty t] (fun v -> Pair (t, v))
+  map [ gen_of_ty t ] (fun v -> Pair (t, v))
 
-let rec printer_of_ty : type a . a S.ty -> a printer = function
+let rec printer_of_ty : type a. a S.ty -> a printer = function
   | S.Int -> pp_int
   | S.Bool -> pp_bool
-  | S.Prod (ta, tb) -> (fun ppf (a, b) ->
-      pp ppf "(%a, %a)" (printer_of_ty ta) a (printer_of_ty tb) b)
+  | S.Prod (ta, tb) ->
+      fun ppf (a, b) ->
+        pp ppf "(%a, %a)" (printer_of_ty ta) a (printer_of_ty tb) b
   | S.List t -> pp_list (printer_of_ty t)
 
 let check_pair (Pair (t, v)) =
@@ -44,4 +46,4 @@ let check_pair (Pair (t, v)) =
   | exception _ -> fail "incorrect deserialization"
   | v' -> check_eq ~pp:(printer_of_ty t) v v'
 
-let () = add_test ~name:"pairs" [pair_gen] check_pair
+let () = add_test ~name:"pairs" [ pair_gen ] check_pair

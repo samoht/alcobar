@@ -6,11 +6,11 @@ Alcobar is a library for testing code, combining QuickCheck-style
 property-based testing and the magical bug-finding powers of
 [afl-fuzz](http://lcamtuf.coredump.cx/afl/).
 """
-maintainer: ["Stephen Dolan <stephen.dolan@cl.cam.ac.uk>"]
+maintainer: ["Thomas Gazagnaire <thomas@gazagnaire.org>"]
 authors: ["Stephen Dolan <stephen.dolan@cl.cam.ac.uk>"]
 license: "MIT"
-homepage: "https://github.com/stedolan/crowbar"
-bug-reports: "https://github.com/stedolan/crowbar/issues"
+homepage: "https://github.com/samoht/alcobar"
+bug-reports: "https://github.com/samoht/alcobar/issues"
 depends: [
   "dune" {>= "2.9"}
   "ocaml" {>= "4.08"}
@@ -40,4 +40,4 @@ build: [
   ]
   ["dune" "install" "-p" name "--create-install-files" name]
 ]
-dev-repo: "git+https://github.com/stedolan/crowbar.git"
+dev-repo: "git+https://github.com/samoht/alcobar.git"

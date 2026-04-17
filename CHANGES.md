@@ -2,6 +2,8 @@
 
 Fork of Crowbar, renamed to Alcobar.
 
+- New upstream: `samoht/alcobar` (maintainer: Thomas Gazagnaire).
+
 v0.2.1 (04 March 2022)
 ---------------------
 

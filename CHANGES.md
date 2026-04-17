@@ -17,6 +17,7 @@ Fork of Crowbar, renamed to Alcobar.
   budget is exhausted. Defaults to 2 seconds. Use `--budget 0` to disable.
 - README rewritten for the alcobar fork.
 - GitHub Actions CI on push and pull request.
+- Library sources moved from `src/` to `lib/`.
 
 v0.2.1 (04 March 2022)
 ---------------------

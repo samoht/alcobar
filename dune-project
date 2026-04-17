@@ -1,5 +1,5 @@
 (lang dune 2.9)
-(name crowbar)
+(name alcobar)
 
 (formatting disabled)
 (generate_opam_files true)
@@ -10,10 +10,10 @@
 (maintainers "Stephen Dolan <stephen.dolan@cl.cam.ac.uk>")
 
 (package
- (name crowbar)
+ (name alcobar)
  (synopsis "Write tests, let a fuzzer find failing cases")
  (description
-"\| Crowbar is a library for testing code, combining QuickCheck-style
+"\| Alcobar is a library for testing code, combining QuickCheck-style
 "\| property-based testing and the magical bug-finding powers of
 "\| [afl-fuzz](http://lcamtuf.coredump.cx/afl/).
  )

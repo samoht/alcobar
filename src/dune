@@ -1,3 +1,3 @@
 (library
- (public_name crowbar)
+ (public_name alcobar)
  (libraries cmdliner afl-persistent str))

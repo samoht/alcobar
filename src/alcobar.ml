@@ -231,9 +231,9 @@ let choose_int n state =
 
 let range ?(min=0) n =
   if n <= 0 then
-    raise (Invalid_argument "Crowbar.range: argument n must be positive");
+    raise (Invalid_argument "Alcobar.range: argument n must be positive");
   if min < 0 then
-    raise (Invalid_argument "Crowbar.range: argument min must be positive or null");
+    raise (Invalid_argument "Alcobar.range: argument min must be positive or null");
   with_printer pp_int (primitive (fun s -> min + choose_int n s) min)
 
 let uchar : Uchar.t gen =
@@ -576,9 +576,9 @@ let randomness_file =
   let doc = "A file containing some bytes, consulted in constructing test cases.  \
     When `afl-fuzz` is calling the test binary, use `@@` to indicate that \
     `afl-fuzz` should put its test case here \
-    (e.g. `afl-fuzz -i input -o output ./my_crowbar_test @@`).  Re-run a test by \
+    (e.g. `afl-fuzz -i input -o output ./my_alcobar_test @@`).  Re-run a test by \
     supplying the test file here \
-    (e.g. `./my_crowbar_test output/crashes/id:000000`).  If no file is \
+    (e.g. `./my_alcobar_test output/crashes/id:000000`).  If no file is \
     specified, the test will use OCaml's Random module as a source of \
     randomness for a predefined number of rounds." in
   Cmdliner.Arg.(value & pos 0 (some file) None & info [] ~doc ~docv:"FILE")
@@ -603,7 +603,7 @@ let infinity =
              test will never terminate without outside intervention." in
   Cmdliner.Arg.(value & flag & info ["i"] ~doc ~docv:"INFINITE")
 
-let crowbar_info = Cmdliner.Cmd.info @@ Filename.basename Sys.argv.(0)
+let alcobar_info = Cmdliner.Cmd.info @@ Filename.basename Sys.argv.(0)
 
 let () =
   at_exit (fun () ->
@@ -614,7 +614,7 @@ let () =
       | t ->
         let cmd = Cmdliner.Term.(const run_all_tests $ seed $ repeat $ randomness_file $ verbosity $
                                  infinity $ const (List.rev t)) in
-        exit @@ Cmdliner.Cmd.eval' ~catch:false (Cmdliner.Cmd.v crowbar_info cmd)
+        exit @@ Cmdliner.Cmd.eval' ~catch:false (Cmdliner.Cmd.v alcobar_info cmd)
     )
 
 module Syntax = struct

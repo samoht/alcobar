@@ -1,4 +1,10 @@
-(test
+(executable
  (name test_fpath)
  (modules test_fpath)
  (libraries alcobar fpath))
+
+(rule
+ (alias runtest)
+ (deps test_fpath.exe)
+ (action
+  (run %{exe:test_fpath.exe})))

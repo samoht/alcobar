@@ -1,4 +1,10 @@
 ; disabled because of xmldiff compat issues
-;(test
+;(executable
 ; (name test_xmldiff)
 ; (libraries xmldiff alcobar))
+;
+;(rule
+; (alias runtest)
+; (deps test_xmldiff.exe)
+; (action
+;  (run %{exe:test_xmldiff.exe})))

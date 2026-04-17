@@ -1,3 +1,9 @@
-(test
+(executable
  (name test_serializer)
  (libraries alcobar))
+
+(rule
+ (alias runtest)
+ (deps test_serializer.exe)
+ (action
+  (run %{exe:test_serializer.exe})))

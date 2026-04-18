@@ -1,9 +1,9 @@
 (executable
- (name test_serializer)
+ (name fuzz)
  (libraries alcobar fmt))
 
 (rule
  (alias runtest)
- (deps test_serializer.exe)
+ (deps fuzz.exe)
  (action
-  (run %{exe:test_serializer.exe})))
+  (run %{exe:fuzz.exe})))

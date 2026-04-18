@@ -1,9 +1,9 @@
 (executable
- (name test_uunf)
+ (name fuzz)
  (libraries uunf uutf uucp alcobar fmt))
 
 (rule
  (alias runtest)
- (deps test_uunf.exe)
+ (deps fuzz.exe)
  (action
-  (run %{exe:test_uunf.exe})))
+  (run %{exe:fuzz.exe})))

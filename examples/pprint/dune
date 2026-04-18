@@ -1,9 +1,9 @@
 (executable
- (name test_pprint)
+ (name fuzz)
  (libraries alcobar pprint re))
 
 (rule
  (alias runtest)
- (deps test_pprint.exe)
+ (deps fuzz.exe)
  (action
-  (run %{exe:test_pprint.exe})))
+  (run %{exe:fuzz.exe})))

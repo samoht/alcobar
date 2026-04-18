@@ -26,13 +26,13 @@ let unicode_to_string s =
   Buffer.contents b
 
 let pp_unicode ppf s =
-  Format.fprintf ppf "@[<v 2>";
-  Format.fprintf ppf "@[\"%s\"@]@ " (unicode_to_string s);
+  Fmt.pf ppf "@[<v 2>";
+  Fmt.pf ppf "@[\"%s\"@]@ " (unicode_to_string s);
   s
   |> List.iter (fun u ->
-      Format.fprintf ppf "@[U+%04x %s (%a)@]@ " (Uchar.to_int u)
-        (Uucp.Name.name u) Uucp.Block.pp (Uucp.Block.block u));
-  Format.fprintf ppf "@]\n"
+      Fmt.pf ppf "@[U+%04x %s (%a)@]@ " (Uchar.to_int u) (Uucp.Name.name u)
+        Uucp.Block.pp (Uucp.Block.block u));
+  Fmt.pf ppf "@]\n"
 
 let unicode = with_printer pp_unicode unicode
 

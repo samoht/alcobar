@@ -22,6 +22,7 @@
   (cmdliner (>= 1.1.0))
   (afl-persistent (>= "1.1"))
   ("calendar" (and (>= "2.00") :with-test))
+  ("fmt" :with-test)
   ("fpath" :with-test)
   ("pprint" :with-test)
   ("uucp" :with-test)

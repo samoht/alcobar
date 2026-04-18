@@ -1,6 +1,6 @@
 (executable
  (name test_serializer)
- (libraries alcobar))
+ (libraries alcobar fmt))
 
 (rule
  (alias runtest)

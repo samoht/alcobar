@@ -1,6 +1,6 @@
 (executable
  (name test_pprint)
- (libraries alcobar pprint str))
+ (libraries alcobar pprint re))
 
 (rule
  (alias runtest)

@@ -25,6 +25,7 @@
   ("fmt" :with-test)
   ("fpath" :with-test)
   ("pprint" :with-test)
+  ("re" :with-test)
   ("uucp" :with-test)
   ("uunf" :with-test)
   ("uutf" :with-test)))

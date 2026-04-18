@@ -23,20 +23,20 @@ let doc =
           map [ doc ] (fun (s, d) -> (s, align d));
         ])
 
+let ws_re = Re.compile (Re.rep (Re.set " \t\n\r"))
+let newline_re = Re.compile (Re.char '\n')
+let mspace_re = Re.compile (Re.seq [ Re.compl [ Re.char ' ' ]; Re.char ' ' ])
+
 let check_doc (s, d) =
   let b = Buffer.create 100 in
   let w = 40 in
   ToBuffer.pretty 1.0 w b d;
   let text = Bytes.to_string (Buffer.to_bytes b) in
-  let ws = Str.regexp "[ \t\n\r]*" in
-  (* Printf.printf "doc2{\n%s\n}%!" text; *)
-  let del_ws = Str.global_replace ws "" in
-  (*  Printf.printf "[%s] = [%s]\n%!" (del_ws s) (del_ws text);*)
-  Str.split (Str.regexp "\n") text
+  let del_ws = Re.replace_string ws_re ~by:"" in
+  Re.split newline_re text
   |> List.iter (fun s ->
-      let mspace = Str.regexp "[^ ] " in
       if String.length s > w then
-        match Str.search_forward mspace s w with
+        match Re.exec ~pos:w mspace_re s with
         | _ -> assert false
         | exception Not_found -> ());
   check_eq (del_ws s) (del_ws text)

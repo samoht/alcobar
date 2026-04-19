@@ -215,8 +215,13 @@ val test_case : string -> ('f, unit) gens -> 'f -> test_case
 val run : string -> (string * test_case list) list -> unit
 (** [run name suites] runs [suites]. Each suite is a pair of a suite name and
     its test cases. Mirrors {!Alcotest.run}: CLI flags (including Alcotest's
-    own) are parsed from [Sys.argv]. If the last CLI argument is an existing
-    file, runs in AFL mode on that file instead. *)
+    own) are parsed from [Sys.argv].
+
+    Three modes are detected automatically:
+    - [--gen-corpus DIR]: generate seed corpus files in [DIR] and exit. Each
+      file contains the exact bytes consumed by generators during a passing run.
+    - If the last argument is an existing file, run in AFL mode.
+    - Otherwise, run as an Alcotest test suite. *)
 
 (** {2:aborting Aborting Tests} *)
 

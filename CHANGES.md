@@ -15,6 +15,7 @@ Fork of Crowbar, renamed to Alcobar.
   defaults to 2 seconds. Use `--timeout 0` to disable.
 - Per-test time budget (`--budget SECONDS`); iteration stops when the
   budget is exhausted. Defaults to 2 seconds. Use `--budget 0` to disable.
+- README rewritten for the alcobar fork.
 
 v0.2.1 (04 March 2022)
 ---------------------

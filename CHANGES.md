@@ -3,6 +3,7 @@
 Fork of Crowbar, renamed to Alcobar.
 
 - New upstream: `samoht/alcobar` (maintainer: Thomas Gazagnaire).
+- Adopt `ocamlformat` (version 0.29.0).
 
 v0.2.1 (04 March 2022)
 ---------------------

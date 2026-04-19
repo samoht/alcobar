@@ -1,8 +1,6 @@
 open PPrint
 open Alcobar
 
-type t = string * PPrint.document
-
 let doc =
   fix (fun doc ->
       choose
@@ -41,4 +39,5 @@ let check_doc (s, d) =
         | exception Not_found -> ());
   check_eq (del_ws s) (del_ws text)
 
-let () = run "alcobar" [ ("pprint", [ test_case "pprint" [ doc ] check_doc ]) ]
+let test_pprint = test_case "pprint" [ doc ] check_doc
+let suite = ("pprint", [ test_pprint ])

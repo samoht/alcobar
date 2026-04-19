@@ -1,10 +1,9 @@
 (executable
- (name test_fpath)
- (modules test_fpath)
+ (name fuzz)
  (libraries alcobar fpath))
 
 (rule
  (alias runtest)
- (deps test_fpath.exe)
+ (deps fuzz.exe)
  (action
-  (run %{exe:test_fpath.exe})))
+  (run %{exe:fuzz.exe})))

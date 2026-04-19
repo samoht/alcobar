@@ -74,4 +74,4 @@ let test_uunf =
   |> List.iter (fun (s, eqs) ->
       List.iter (fun s' -> check_eq ~pp:pp_unicode s s') eqs)
 
-let () = run "alcobar" [ ("uunf", [ test_uunf ]) ]
+let suite = ("uunf", [ test_uunf ])

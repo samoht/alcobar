@@ -1,9 +1,9 @@
 (executable
- (name test_map)
+ (name fuzz)
  (libraries alcobar))
 
 (rule
  (alias runtest)
- (deps test_map.exe)
+ (deps fuzz.exe)
  (action
-  (run %{exe:test_map.exe})))
+  (run %{exe:fuzz.exe})))

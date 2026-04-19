@@ -14,4 +14,4 @@ let test_segs =
   check_eq ~eq:equal p
     (v @@ (fst @@ split_volume p) ^ String.concat ~sep:dir_sep (segs p))
 
-let () = run "alcobar" [ ("fpath", [ test_segs ]) ]
+let suite = ("fpath", [ test_segs ])

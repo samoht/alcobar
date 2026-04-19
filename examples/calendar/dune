@@ -1,9 +1,9 @@
 (executable
- (name test_calendar)
+ (name fuzz)
  (libraries alcobar calendar))
 
 (rule
  (alias runtest)
- (deps test_calendar.exe)
+ (deps fuzz.exe)
  (action
-  (run %{exe:test_calendar.exe})))
+  (run %{exe:fuzz.exe})))

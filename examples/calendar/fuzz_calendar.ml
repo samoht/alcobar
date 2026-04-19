@@ -12,11 +12,10 @@ let pp_time ppf t =
     (C.day_of_month t) (C.hour t) (C.minute t) (C.second t)
 
 let time = with_printer pp_time time
-let period = map [ const 0; const 0; int8; int8; int8; int8 ] C.Period.make
 
 let test_calendar =
   test_case "calendar" [ time; time ] @@ fun t1 t2 ->
   guard (C.compare t1 t2 < 0);
   check_eq ~pp:pp_time ~eq:C.equal (C.add t1 (C.precise_sub t2 t1)) t2
 
-let () = run "alcobar" [ ("calendar", [ test_calendar ]) ]
+let suite = ("calendar", [ test_calendar ])

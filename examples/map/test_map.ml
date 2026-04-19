@@ -11,7 +11,7 @@ type t = (int * int) list * int Map.t
 let check_map ((list, map) : t) =
   let rec dedup k = function
     | [] -> []
-    | (k', v') :: rest when k = k' -> dedup k rest
+    | (k', _v') :: rest when k = k' -> dedup k rest
     | (k', v') :: rest -> (k', v') :: dedup k' rest
   in
   let list =
@@ -38,11 +38,11 @@ let map_gen : t gen =
               (rem_all k l, Map.remove k m));
           (* merge? *)
           map [ map_gen; map_gen ] (fun (l, m) (l', m') ->
-              (l @ l', Map.union (fun k a b -> Some a) m m'));
+              (l @ l', Map.union (fun _k a _b -> Some a) m m'));
           map [ uint8; map_gen ] (fun k (list, map) ->
               let l, v, r = Map.split k map in
-              let l', vr' = List.partition (fun (kx, vx) -> kx < k) list in
-              let r' = List.filter (fun (kx, vx) -> kx <> k) vr' in
+              let l', vr' = List.partition (fun (kx, _vx) -> kx < k) list in
+              let r' = List.filter (fun (kx, _vx) -> kx <> k) vr' in
               let v' =
                 match List.assoc k vr' with
                 | n -> Some n
@@ -51,7 +51,7 @@ let map_gen : t gen =
               assert (v = v');
               ( l' @ List.map (fun (k, v) -> (k, v + 42)) r',
                 Map.union
-                  (fun k a b -> assert false)
+                  (fun _k _a _b -> assert false)
                   l
                   (Map.map (fun v -> v + 42) r) ));
         ])

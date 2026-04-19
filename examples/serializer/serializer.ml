@@ -23,9 +23,14 @@ let rec serialize : type a. a ty -> a -> data = function
       fun (va, vb) -> Block ("pair", [ serialize ta va; serialize tb vb ])
   | List t -> fun vs -> Block ("list", List.map (serialize t) vs)
 
-let rec deserialize : type a. a ty -> data -> a = function[@warning "-8"]
-  | Int -> fun (Datum s) -> int_of_string s
-  | Bool -> fun (Datum s) -> bool_of_string s
-  | Prod (ta, tb) ->
-      fun (Block ("pair", [ sa; sb ])) -> (deserialize ta sa, deserialize tb sb)
-  | List t -> fun (Block ("list", ss)) -> List.map (deserialize t) ss
+exception Bad_data
+
+let rec deserialize : type a. a ty -> data -> a =
+ fun ty d ->
+  match (ty, d) with
+  | Int, Datum s -> int_of_string s
+  | Bool, Datum s -> bool_of_string s
+  | Prod (ta, tb), Block ("pair", [ sa; sb ]) ->
+      (deserialize ta sa, deserialize tb sb)
+  | List t, Block ("list", ss) -> List.map (deserialize t) ss
+  | _ -> raise Bad_data

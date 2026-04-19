@@ -519,7 +519,15 @@ type config = {
   repeat : int;
   verbose : bool;
   infinite : bool;
+  timeout : int;
 }
+
+exception Timeout
+
+let default_timeout =
+  match Sys.getenv_opt "ALCOBAR_TIMEOUT" with
+  | Some s -> ( try int_of_string s with _ -> 2)
+  | None -> 2
 
 let config_term =
   let open Cmdliner in
@@ -539,10 +547,30 @@ let config_term =
     let doc = "Run until a failure is found." in
     Arg.(value & flag & info [ "i"; "infinite" ] ~doc)
   in
+  let timeout =
+    let doc =
+      "Per-test timeout in seconds (0 to disable). Can also be set via the \
+       ALCOBAR_TIMEOUT environment variable."
+    in
+    Arg.(value & opt int default_timeout & info [ "timeout" ] ~doc)
+  in
   Term.(
-    const (fun seed repeat verbose infinite ->
-        { seed; repeat; verbose; infinite })
-    $ seed $ repeat $ verbose $ infinite)
+    const (fun seed repeat verbose infinite timeout ->
+        { seed; repeat; verbose; infinite; timeout })
+    $ seed $ repeat $ verbose $ infinite $ timeout)
+
+let with_timeout timeout f =
+  if timeout <= 0 then f ()
+  else
+    let old_handler =
+      Sys.signal Sys.sigalrm (Sys.Signal_handle (fun _ -> raise Timeout))
+    in
+    let old_alarm = Unix.alarm timeout in
+    Fun.protect
+      ~finally:(fun () ->
+        ignore (Unix.alarm old_alarm);
+        Sys.set_signal Sys.sigalrm old_handler)
+      f
 
 let run_property_test (Test { gens; f; _ }) config =
   let seed =
@@ -557,7 +585,14 @@ let run_property_test (Test { gens; f; _ }) config =
     let state =
       { chan = src_of_seed s; buf = Bytes.make 256 '0'; offset = 0; len = 0 }
     in
-    let status = run_once gens f state in
+    let status =
+      try with_timeout config.timeout (fun () -> run_once gens f state)
+      with Timeout ->
+        TestExn
+          ( Timeout,
+            Printexc.get_raw_backtrace (),
+            fun ppf () -> pp ppf "<timeout after %ds>" config.timeout )
+    in
     match classify_status status with
     | `Pass ->
         incr npass;

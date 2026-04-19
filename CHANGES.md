@@ -11,6 +11,8 @@ Fork of Crowbar, renamed to Alcobar.
   be invoked directly with CLI flags.
 - `--gen-corpus DIR` flag generates seed corpus files from passing
   test runs, capturing the exact bytes consumed by generators.
+- Per-test timeout (`ALCOBAR_TIMEOUT` env var, `--timeout` flag);
+  defaults to 2 seconds. Use `--timeout 0` to disable.
 
 v0.2.1 (04 March 2022)
 ---------------------

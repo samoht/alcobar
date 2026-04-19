@@ -36,8 +36,8 @@ let pp_unicode ppf s =
 
 let unicode = with_printer pp_unicode unicode
 
-let () =
-  add_test ~name:"uunf" [ unicode ] @@ fun s ->
+let test_uunf =
+  test_case "uunf" [ unicode ] @@ fun s ->
   let nfc = norm `NFC s in
   let nfd = norm `NFD s in
   let nfkc = norm `NFKC s in
@@ -73,3 +73,5 @@ let () =
   tests
   |> List.iter (fun (s, eqs) ->
       List.iter (fun s' -> check_eq ~pp:pp_unicode s s') eqs)
+
+let () = run "alcobar" [ ("uunf", [ test_uunf ]) ]

@@ -56,4 +56,6 @@ let map_gen : t gen =
                   (Map.map (fun v -> v + 42) r) ));
         ])
 
-let () = add_test ~name:"map" [ map_gen ] @@ fun m -> check (check_map m)
+let () =
+  run "alcobar"
+    [ ("map", [ test_case "map" [ map_gen ] (fun m -> check (check_map m)) ]) ]

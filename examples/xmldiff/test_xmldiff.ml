@@ -34,7 +34,9 @@ let xml = map [ xml ] (fun d -> `E (("", "a"), Xmldiff.Nmap.empty, [ d ]))
 let pp_xml ppf xml = pp ppf "%s" (Xmldiff.string_of_xml xml)
 let xml = with_printer pp_xml xml
 
-let () =
-  add_test ~name:"xmldiff" [ xml; xml ] @@ fun xml1 xml2 ->
+let test_xmldiff =
+  test_case "xmldiff" [ xml; xml ] @@ fun xml1 xml2 ->
   let patch, xml3 = Xmldiff.diff_with_final_tree xml1 xml2 in
   check_eq ~pp:pp_xml xml2 xml3
+
+let () = run "alcobar" [ ("xmldiff", [ test_xmldiff ]) ]

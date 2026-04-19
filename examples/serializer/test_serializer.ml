@@ -46,4 +46,6 @@ let check_pair (Pair (t, v)) =
   | exception _ -> fail "incorrect deserialization"
   | v' -> check_eq ~pp:(printer_of_ty t) v v'
 
-let () = add_test ~name:"pairs" [ pair_gen ] check_pair
+let () =
+  run "alcobar"
+    [ ("serializer", [ test_case "pairs" [ pair_gen ] check_pair ]) ]

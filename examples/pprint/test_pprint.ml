@@ -41,4 +41,4 @@ let check_doc (s, d) =
         | exception Not_found -> ());
   check_eq (del_ws s) (del_ws text)
 
-let () = add_test ~name:"pprint" [ doc ] check_doc
+let () = run "alcobar" [ ("pprint", [ test_case "pprint" [ doc ] check_doc ]) ]

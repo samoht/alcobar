@@ -423,7 +423,14 @@ let check_eq ?pp:pv ?cmp ?eq a b =
 
 let () = Printexc.record_backtrace true
 
-type test = Test : string * ('f, unit) gens * 'f -> test
+type test =
+  | Test : {
+      suite : string;
+      name : string;
+      gens : ('f, unit) gens;
+      f : 'f;
+    }
+      -> test
 
 type test_status =
   | TestPass of unit printer
@@ -449,8 +456,7 @@ let classify_status = function
 let print_status ppf status =
   let print_ex ppf (e, bt) =
     pp ppf "%s" (Printexc.to_string e);
-    bt |> Printexc.raw_backtrace_to_string
-    |> Str.split (Str.regexp "\n")
+    bt |> Printexc.raw_backtrace_to_string |> String.split_on_char '\n'
     |> List.iter (pp ppf "@,%s")
   in
   match status with
@@ -496,198 +502,127 @@ let prng_state_of_seed seed =
 
 let src_of_seed seed = Random (prng_state_of_seed seed)
 
-let run_test ~mode ~silent ?(verbose = false) (Test (name, gens, f)) =
-  let show_status_line ?(clear = false) stat =
-    Printf.printf "%s: %s\n" name stat;
-    if clear then print_newline ();
-    flush stdout
+(* {1 Property-testing runner (via Alcotest)} *)
+
+type config = {
+  seed : int64 option;
+  repeat : int;
+  verbose : bool;
+  infinite : bool;
+}
+
+let config_term =
+  let open Cmdliner in
+  let seed =
+    let doc = "The seed (an int64) for the PRNG." in
+    Arg.(value & opt (some int64) None & info [ "s"; "seed" ] ~doc)
   in
-  let ppf = Format.std_formatter in
-  if (not silent) && Unix.isatty Unix.stdout then
-    show_status_line ~clear:false "....";
-  let status =
-    match mode with
-    | `Once state -> run_once gens f state
-    | `Repeat (iters, seedseed) ->
-        let worst_status = ref (TestPass (fun _ () -> ())) in
-        let npass = ref 0 in
-        let nbad = ref 0 in
-        let seedsrc = prng_state_of_seed seedseed in
-        while !npass < iters && classify_status !worst_status = `Pass do
-          let seed = Random.State.int64 seedsrc Int64.max_int in
-          let state =
-            {
-              chan = src_of_seed seed;
-              buf = Bytes.make 256 '0';
-              offset = 0;
-              len = 0;
-            }
-          in
-          let status = run_once gens f state in
-          begin match classify_status status with
-          | `Pass -> incr npass
-          | `Bad -> incr nbad
-          | `Fail -> worst_status := status
-          end
-        done;
-        let status = !worst_status in
-        status
+  let repeat =
+    let doc = "The number of times to repeat each test." in
+    Arg.(value & opt int 5000 & info [ "r"; "repeat" ] ~doc)
   in
-  if silent && verbose && classify_status status = `Fail then begin
-    show_status_line ~clear:true "FAIL";
-    pp ppf "%a@." print_status status
-  end;
-  if not silent then
-    begin match classify_status status with
+  let verbose =
+    let doc = "Print information on each passing test." in
+    Arg.(value & flag & info [ "alcobar-verbose" ] ~doc)
+  in
+  let infinite =
+    let doc = "Run until a failure is found." in
+    Arg.(value & flag & info [ "i"; "infinite" ] ~doc)
+  in
+  Term.(
+    const (fun seed repeat verbose infinite ->
+        { seed; repeat; verbose; infinite })
+    $ seed $ repeat $ verbose $ infinite)
+
+let run_property_test (Test { gens; f; _ }) config =
+  let seed =
+    match config.seed with Some s -> s | None -> Random.int64 Int64.max_int
+  in
+  let seedsrc = prng_state_of_seed seed in
+  let npass = ref 0 in
+  let failure = ref None in
+  let max_iter = if config.infinite then max_int else config.repeat in
+  while !npass < max_iter && Option.is_none !failure do
+    let s = Random.State.int64 seedsrc Int64.max_int in
+    let state =
+      { chan = src_of_seed s; buf = Bytes.make 256 '0'; offset = 0; len = 0 }
+    in
+    let status = run_once gens f state in
+    match classify_status status with
     | `Pass ->
-        show_status_line ~clear:true "PASS";
-        if verbose then pp ppf "%a@." print_status status
-    | `Fail ->
-        show_status_line ~clear:true "FAIL";
-        pp ppf "%a@." print_status status
-    | `Bad ->
-        show_status_line ~clear:true "BAD";
-        pp ppf "%a@." print_status status
-    end;
-  status
+        incr npass;
+        if config.verbose then Printf.printf "  pass %d\n%!" !npass
+    | `Bad -> ()
+    | `Fail -> failure := Some status
+  done;
+  match !failure with
+  | None -> ()
+  | Some status -> Alcotest.fail (Format.asprintf "%a" print_status status)
+
+let run_with_alcotest name tests =
+  let groups = Hashtbl.create 16 in
+  List.iter
+    (fun (Test { suite; name; _ } as test) ->
+      let tc = Alcotest.test_case name `Quick (run_property_test test) in
+      let prev = try Hashtbl.find groups suite with Not_found -> [] in
+      Hashtbl.replace groups suite (tc :: prev))
+    tests;
+  let suites =
+    Hashtbl.fold (fun group tcs acc -> (group, List.rev tcs) :: acc) groups []
+    |> List.sort (fun (a, _) (b, _) -> String.compare a b)
+  in
+  Alcotest.run_with_args name config_term suites
+
+(* {1 AFL runner} *)
 
 exception TestFailure
 
-let run_all_tests seed repeat file verbosity infinity tests =
-  match file with
-  | None ->
-      let seed =
-        match seed with Some seed -> seed | None -> Random.int64 Int64.max_int
+let run_afl tests file =
+  AflPersistent.run (fun () ->
+      let fd = Unix.openfile file [ Unix.O_RDONLY ] 0o000 in
+      let state =
+        { chan = Fd fd; buf = Bytes.make 256 '0'; offset = 0; len = 0 }
       in
-      if infinity then
-        (* infinite QuickCheck mode *)
-        let rec go ntests alltests tests =
-          match tests with
-          | [] -> go ntests alltests alltests
-          | t :: rest -> (
-              if ntests mod 10000 = 0 then Printf.eprintf "\r%d%!" ntests;
-              let chan = src_of_seed seed in
-              let state =
-                { chan; buf = Bytes.make 256 '0'; offset = 0; len = 0 }
-              in
-              match
-                classify_status
-                  (run_test ~mode:(`Once state) ~silent:true ~verbose:true t)
-              with
-              | `Fail ->
-                  Printf.printf "%d tests passed before first failure\n%!"
-                    ntests
-              | _ -> go (ntests + 1) alltests rest)
-        in
-        let () = go 0 tests tests in
-        1
-      else
-        (* limited-run QuickCheck mode *)
-        let failures = ref 0 in
-        let () =
-          tests
-          |> List.iter (fun t ->
-              match
-                run_test ~mode:(`Repeat (repeat, seed)) ~silent:false t
-                |> classify_status
-              with
-              | `Fail -> failures := !failures + 1
-              | _ -> ())
-        in
-        !failures
-  | Some file ->
-      (* AFL mode *)
-      let verbose = List.length verbosity > 0 in
-      let () =
-        AflPersistent.run (fun () ->
-            let fd = Unix.openfile file [ Unix.O_RDONLY ] 0o000 in
-            let state =
-              { chan = Fd fd; buf = Bytes.make 256 '0'; offset = 0; len = 0 }
-            in
-            let status =
-              try
-                run_test ~mode:(`Once state) ~silent:false ~verbose
-                @@ List.nth tests (choose_int (List.length tests) state)
-              with BadTest s -> BadInput s
-            in
-            Unix.close fd;
-            match classify_status status with
-            | `Pass | `Bad -> ()
-            | `Fail ->
-                Printexc.record_backtrace false;
-                raise TestFailure)
-      in
-      0 (* failures come via the exception mechanism above *)
-
-let last_generated_name = ref 0
-
-let generate_name () =
-  incr last_generated_name;
-  "test" ^ string_of_int !last_generated_name
-
-let registered_tests = ref []
-
-let add_test ?name gens f =
-  let name = match name with None -> generate_name () | Some name -> name in
-  registered_tests := Test (name, gens, f) :: !registered_tests
-
-(* cmdliner stuff *)
-
-let randomness_file =
-  let doc =
-    "A file containing some bytes, consulted in constructing test cases.  When \
-     `afl-fuzz` is calling the test binary, use `@@` to indicate that \
-     `afl-fuzz` should put its test case here (e.g. `afl-fuzz -i input -o \
-     output ./my_alcobar_test @@`).  Re-run a test by supplying the test file \
-     here (e.g. `./my_alcobar_test output/crashes/id:000000`).  If no file is \
-     specified, the test will use OCaml's Random module as a source of \
-     randomness for a predefined number of rounds."
-  in
-  Cmdliner.Arg.(value & pos 0 (some file) None & info [] ~doc ~docv:"FILE")
-
-let seed =
-  let doc =
-    "The seed (an int64) for the PRNG. Use as an alternative to FILE\n\
-    \    when running in non-AFL (quickcheck) mode."
-  in
-  Cmdliner.Arg.(
-    value & opt (some int64) None & info [ "s"; "seed" ] ~doc ~docv:"SEED")
-
-let repeat =
-  let doc = "The number of times to repeat the test in quick-check." in
-  Cmdliner.Arg.(
-    value & opt int 5000 & info [ "r"; "repeat" ] ~doc ~docv:"REPEAT")
-
-let verbosity =
-  let doc = "Print information on each test as it's conducted." in
-  Cmdliner.Arg.(value & flag_all & info [ "v"; "verbose" ] ~doc ~docv:"VERBOSE")
-
-let infinity =
-  let doc =
-    "In non-AFL (quickcheck) mode, continue running until a test failure is \
-     discovered.  No attempt is made to track which tests have already been \
-     run, so some tests may be repeated, and if there are no failures \
-     reachable, the test will never terminate without outside intervention."
-  in
-  Cmdliner.Arg.(value & flag & info [ "i" ] ~doc ~docv:"INFINITE")
-
-let alcobar_info = Cmdliner.Cmd.info @@ Filename.basename Sys.argv.(0)
-
-let () =
-  at_exit (fun () ->
-      let t = !registered_tests in
-      registered_tests := [];
-      match t with
-      | [] -> ()
-      | t ->
-          let cmd =
-            Cmdliner.Term.(
-              const run_all_tests $ seed $ repeat $ randomness_file $ verbosity
-              $ infinity
-              $ const (List.rev t))
+      let status =
+        try
+          let (Test { gens; f; _ }) =
+            List.nth tests (choose_int (List.length tests) state)
           in
-          exit
-          @@ Cmdliner.Cmd.eval' ~catch:false (Cmdliner.Cmd.v alcobar_info cmd))
+          run_once gens f state
+        with BadTest s -> BadInput s
+      in
+      Unix.close fd;
+      match classify_status status with
+      | `Pass | `Bad -> ()
+      | `Fail ->
+          Printexc.record_backtrace false;
+          raise TestFailure)
+
+let detect_afl_file () =
+  let n = Array.length Sys.argv in
+  if n >= 2 then
+    let last = Sys.argv.(n - 1) in
+    if Sys.file_exists last then Some last else None
+  else None
+
+type test_case =
+  | TC : { name : string; gens : ('f, unit) gens; f : 'f } -> test_case
+
+let test_case name gens f = TC { name; gens; f }
+
+let run name suites =
+  let tests =
+    List.concat_map
+      (fun (suite_name, tcs) ->
+        List.map
+          (fun (TC { name; gens; f }) ->
+            Test { suite = suite_name; name; gens; f })
+          tcs)
+      suites
+  in
+  match detect_afl_file () with
+  | Some file -> run_afl tests file
+  | None -> run_with_alcotest name tests
 
 module Syntax = struct
   let ( let* ) = dynamic_bind

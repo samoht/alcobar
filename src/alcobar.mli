@@ -204,11 +204,19 @@ val pp_option : 'a printer -> 'a option printer
 
 (** {1:testing Testing} *)
 
-val add_test : ?name:string -> ('f, unit) gens -> 'f -> unit
-(** [add_test name generators test_fn] adds [test_fn] to the list of eligible
-    tests to be run when the program is invoked. At runtime, random data will be
-    sent to [generators] to create the input necessary to run [test_fn]. Any
-    failures will be printed annotated with [name]. *)
+type test_case
+(** An opaque test case. *)
+
+val test_case : string -> ('f, unit) gens -> 'f -> test_case
+(** [test_case name generators test_fn] creates a test case: [test_fn] is run
+    with random data produced by [generators]. Any failure is reported annotated
+    with [name]. *)
+
+val run : string -> (string * test_case list) list -> unit
+(** [run name suites] runs [suites]. Each suite is a pair of a suite name and
+    its test cases. Mirrors {!Alcotest.run}: CLI flags (including Alcotest's
+    own) are parsed from [Sys.argv]. If the last CLI argument is an existing
+    file, runs in AFL mode on that file instead. *)
 
 (** {2:aborting Aborting Tests} *)
 

@@ -20,6 +20,7 @@ Fork of Crowbar, renamed to Alcobar.
 - Library sources moved from `src/` to `lib/`.
 - Restructure examples as fuzz runners: each directory has `fuzz.ml`
   plus a `fuzz_<lib>.ml[i]` module exporting a `suite` value.
+- Require dune >= 3.21 and use `%{dune-warnings}` for dev flags.
 
 v0.2.1 (04 March 2022)
 ---------------------

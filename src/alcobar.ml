@@ -520,6 +520,7 @@ type config = {
   verbose : bool;
   infinite : bool;
   timeout : int;
+  budget : float;
 }
 
 exception Timeout
@@ -554,10 +555,17 @@ let config_term =
     in
     Arg.(value & opt int default_timeout & info [ "timeout" ] ~doc)
   in
+  let budget =
+    let doc =
+      "Total time budget per test in seconds (0 to disable). Iteration stops \
+       when the budget is exhausted."
+    in
+    Arg.(value & opt float 2. & info [ "budget" ] ~docv:"SECONDS" ~doc)
+  in
   Term.(
-    const (fun seed repeat verbose infinite timeout ->
-        { seed; repeat; verbose; infinite; timeout })
-    $ seed $ repeat $ verbose $ infinite $ timeout)
+    const (fun seed repeat verbose infinite timeout budget ->
+        { seed; repeat; verbose; infinite; timeout; budget })
+    $ seed $ repeat $ verbose $ infinite $ timeout $ budget)
 
 let with_timeout timeout f =
   if timeout <= 0 then f ()
@@ -580,7 +588,11 @@ let run_property_test (Test { gens; f; _ }) config =
   let npass = ref 0 in
   let failure = ref None in
   let max_iter = if config.infinite then max_int else config.repeat in
-  while !npass < max_iter && Option.is_none !failure do
+  let start_time = Unix.gettimeofday () in
+  let within_budget () =
+    config.budget <= 0. || Unix.gettimeofday () -. start_time < config.budget
+  in
+  while !npass < max_iter && Option.is_none !failure && within_budget () do
     let s = Random.State.int64 seedsrc Int64.max_int in
     let state =
       { chan = src_of_seed s; buf = Bytes.make 256 '0'; offset = 0; len = 0 }

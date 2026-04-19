@@ -13,6 +13,8 @@ Fork of Crowbar, renamed to Alcobar.
   test runs, capturing the exact bytes consumed by generators.
 - Per-test timeout (`ALCOBAR_TIMEOUT` env var, `--timeout` flag);
   defaults to 2 seconds. Use `--timeout 0` to disable.
+- Per-test time budget (`--budget SECONDS`); iteration stops when the
+  budget is exhausted. Defaults to 2 seconds. Use `--budget 0` to disable.
 
 v0.2.1 (04 March 2022)
 ---------------------

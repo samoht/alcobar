@@ -1,4 +1,4 @@
-## v0.3 (unreleased)
+## v0.3.1 (21/04/2026)
 
 Fork of Crowbar, renamed to Alcobar.
 

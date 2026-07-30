@@ -1,4 +1,4 @@
-## unreleased
+## v0.3.2 (30/07/2026)
 
 - Fail a property whose guard rejected every generated input, instead of
   reporting a pass (#1, @samoht)

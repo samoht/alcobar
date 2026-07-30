@@ -1,0 +1,16 @@
+(executable
+ (name fuzz)
+ (libraries alcobar))
+
+; The property can never run, so the binary must fail. Before alcobar counted
+; discarded inputs this exited zero.
+
+(rule
+ (alias runtest)
+ (deps fuzz.exe)
+ (action
+  (with-accepted-exit-codes
+   1
+   (with-outputs-to
+    starved.output
+    (run %{exe:fuzz.exe})))))

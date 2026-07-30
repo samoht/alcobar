@@ -586,6 +586,7 @@ let run_property_test (Test { gens; f; _ }) config =
   in
   let seedsrc = prng_state_of_seed seed in
   let npass = ref 0 in
+  let ndiscarded = ref 0 in
   let failure = ref None in
   let max_iter = if config.infinite then max_int else config.repeat in
   let start_time = Unix.gettimeofday () in
@@ -609,12 +610,24 @@ let run_property_test (Test { gens; f; _ }) config =
     | `Pass ->
         incr npass;
         if config.verbose then Printf.printf "  pass %d\n%!" !npass
-    | `Bad -> ()
+    | `Bad -> incr ndiscarded
     | `Fail -> failure := Some status
   done;
   match !failure with
-  | None -> ()
   | Some status -> Alcotest.fail (Format.asprintf "%a" print_status status)
+  | None ->
+      (* A run that reached the end of its budget without ever getting past a
+         guard has checked nothing, and reporting that as a pass is
+         indistinguishable from reporting a property that held. It is how a
+         property whose guard has stopped matching what the generators produce
+         goes quiet instead of failing. *)
+      if !npass = 0 then
+        Alcotest.fail
+          (Printf.sprintf
+             "no iteration ran: %d generated input%s rejected by a guard, and \
+              the property was never evaluated"
+             !ndiscarded
+             (if !ndiscarded = 1 then " was" else "s were"))
 
 let run_with_alcotest name tests =
   let groups = Hashtbl.create 16 in

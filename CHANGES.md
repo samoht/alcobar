@@ -2,6 +2,10 @@
 
 - Fail a property whose guard rejected every generated input, instead of
   reporting a pass (#1, @samoht)
+- Take the `calendar` example out of `dune runtest`: the property it
+  demonstrates finds a genuine bug in `calendar`, which about half of all
+  seeds hit, so the release failed opam CI on the compilers whose default
+  seed found it (@samoht)
 
 ## v0.3.1 (21/04/2026)
 

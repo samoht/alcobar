@@ -2,8 +2,15 @@
  (name fuzz)
  (libraries alcobar calendar))
 
+; Deliberately not attached to runtest: this property fails, and the bug it
+; finds is in calendar rather than in alcobar. About half of all seeds find a
+; counterexample, so whether a given run goes red depends on the seed the
+; default PRNG produces, which differs between 4.x and 5.x compilers. A demo
+; of someone else's bug must not decide whether alcobar builds. Run it with
+; `dune build @examples/calendar/demo`.
+
 (rule
- (alias runtest)
+ (alias demo)
  (deps fuzz.exe)
  (action
   (run %{exe:fuzz.exe})))

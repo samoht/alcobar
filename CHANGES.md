@@ -6,6 +6,7 @@
   demonstrates finds a genuine bug in `calendar`, which about half of all
   seeds hit, so the release failed opam CI on the compilers whose default
   seed found it (@samoht)
+- Run CI on 4.08 and 4.14 as well as 5.4 (@samoht)
 
 ## v0.3.1 (21/04/2026)
 

@@ -14,3 +14,16 @@
    (with-outputs-to
     starved.output
     (run %{exe:fuzz.exe})))))
+
+; Nothing gets past the guard, so the generator cannot record a single seed
+; and afl would be handed an empty corpus. That has to fail too.
+
+(rule
+ (alias runtest)
+ (deps fuzz.exe)
+ (action
+  (with-accepted-exit-codes
+   1
+   (with-outputs-to
+    corpus.output
+    (run %{exe:fuzz.exe} --gen-corpus corpus)))))

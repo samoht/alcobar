@@ -1,7 +1,10 @@
-## v0.3.2 (30/07/2026)
+## v0.3.2 (20/08/2026)
 
 - Fail a property whose guard rejected every generated input, instead of
   reporting a pass (#1, @samoht)
+- Report which tests `--gen-corpus` came up short on, and fail when no test
+  could be seeded at all, instead of printing a count that reads like a
+  complete corpus (@samoht)
 - Take the `calendar` example out of `dune runtest`: the property it
   demonstrates finds a genuine bug in `calendar`, which about half of all
   seeds hit, so the release failed opam CI on the compilers whose default

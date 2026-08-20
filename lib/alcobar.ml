@@ -685,16 +685,32 @@ let detect_gen_corpus () =
   in
   find 1
 
+let shortfall ~suite ~name ~good ~seeds_per_test ~attempts ~discarded ~failed =
+  let reasons =
+    List.filter_map
+      (fun (n, what) ->
+        if n = 0 then None else Some (Printf.sprintf "%d %s" n what))
+      [ (discarded, "rejected by a guard"); (failed, "failed the property") ]
+  in
+  Printf.sprintf "gen-corpus: %s/%s: %s after %d attempts%s\n" suite name
+    (if good = 0 then "no seed"
+     else Printf.sprintf "%d of %d seeds" good seeds_per_test)
+    attempts
+    (match reasons with [] -> "" | l -> " (" ^ String.concat ", " l ^ ")")
+
 let generate_corpus dir tests =
   (try Unix.mkdir dir 0o755 with Unix.Unix_error (Unix.EEXIST, _, _) -> ());
   let seedsrc = prng_state_of_seed 42L in
   let count = ref 0 in
   let seeds_per_test = 5 in
   let max_attempts = 200 in
+  let shortfalls = ref [] in
   List.iter
-    (fun (Test { gens; f; _ }) ->
+    (fun (Test { suite; name; gens; f }) ->
       let good = ref 0 in
       let attempts = ref 0 in
+      let discarded = ref 0 in
+      let failed = ref 0 in
       while !good < seeds_per_test && !attempts < max_attempts do
         incr attempts;
         let s = Random.State.int64 seedsrc Int64.max_int in
@@ -716,10 +732,27 @@ let generate_corpus dir tests =
             close_out oc;
             incr count;
             incr good
-        | _ -> ()
-      done)
+        | `Bad -> incr discarded
+        | `Fail -> incr failed
+      done;
+      (* A short corpus reads exactly like a complete one in the count below,
+         and a test nothing gets seeded for is a test the fuzzer never runs.
+         Name the ones that came up short, and say what stopped them. *)
+      if !good < seeds_per_test then
+        shortfalls :=
+          shortfall ~suite ~name ~good:!good ~seeds_per_test ~attempts:!attempts
+            ~discarded:!discarded ~failed:!failed
+          :: !shortfalls)
     tests;
-  Printf.printf "gen-corpus: wrote %d seed files to %s/\n" !count dir
+  List.iter prerr_string (List.rev !shortfalls);
+  flush stderr;
+  Printf.printf "gen-corpus: wrote %d seed files to %s/\n%!" !count dir;
+  (* afl-fuzz refuses an empty input directory, so stop here with the reason
+     rather than leaving it to report that the corpus it was handed is
+     unusable. *)
+  if !count = 0 then (
+    prerr_endline "gen-corpus: no test could be seeded, the corpus is empty";
+    exit 1)
 
 type test_case =
   | TC : { name : string; gens : ('f, unit) gens; f : 'f } -> test_case

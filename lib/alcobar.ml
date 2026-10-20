@@ -433,10 +433,28 @@ let check_eq ?pp:pv ?cmp ?eq a b =
 
 let () = Printexc.record_backtrace true
 
+(* The outcomes the sample in flight declares, and those it has reached. *)
+type sample_outcomes = {
+  declared : string list;
+  reached : (string, unit) Hashtbl.t;
+}
+
+let in_flight : sample_outcomes option ref = ref None
+
+let reach outcome =
+  match !in_flight with
+  | None -> ()
+  | Some { declared; reached } ->
+      if List.mem outcome declared then Hashtbl.replace reached outcome ()
+      else
+        failf "reach %S: not an outcome this test declares (%s)" outcome
+          (String.concat ", " declared)
+
 type test =
   | Test : {
       suite : string;
       name : string;
+      outcomes : string list;
       gens : ('f, unit) gens;
       f : 'f;
     }
@@ -449,13 +467,23 @@ type test_status =
   | TestExn of exn * Printexc.raw_backtrace * unit printer
   | TestFail of unit printer * unit printer
 
-let run_once (gens : (_, unit) gens) f state =
-  match gen_apply 100 state gens f with
-  | Ok (), pvs -> TestPass pvs
-  | Error (FailedTest p, _), pvs -> TestFail (p, pvs)
-  | Error (e, bt), pvs -> TestExn (e, bt, pvs)
-  | exception BadTest s -> BadInput s
-  | exception GenFailed (e, bt, pvs) -> GenFail (e, bt, pvs)
+(* [run_once outcomes gens f state] runs one sample and returns its status
+   with the outcomes, among [outcomes], that it reached. *)
+let run_once outcomes (gens : (_, unit) gens) f state =
+  let sample = { declared = outcomes; reached = Hashtbl.create 8 } in
+  in_flight := Some sample;
+  let status =
+    Fun.protect
+      ~finally:(fun () -> in_flight := None)
+      (fun () ->
+        match gen_apply 100 state gens f with
+        | Ok (), pvs -> TestPass pvs
+        | Error (FailedTest p, _), pvs -> TestFail (p, pvs)
+        | Error (e, bt), pvs -> TestExn (e, bt, pvs)
+        | exception BadTest s -> BadInput s
+        | exception GenFailed (e, bt, pvs) -> GenFail (e, bt, pvs))
+  in
+  (status, sample.reached)
 
 let classify_status = function
   | TestPass _ -> `Pass
@@ -580,7 +608,26 @@ let with_timeout timeout f =
         Sys.set_signal Sys.sigalrm old_handler)
       f
 
-let run_property_test (Test { gens; f; _ }) config =
+let pp_counts ppf (outcomes, count) =
+  pp ppf "%s"
+    (String.concat ", "
+       (List.map (fun o -> Printf.sprintf "%s %d" o (count o)) outcomes))
+
+(* The outcome counts of each property run, in the order they ran. They are
+   printed when the process exits, after Alcotest's own report. *)
+let outcome_reports = ref []
+
+let print_outcome_reports () =
+  match List.rev !outcome_reports with
+  | [] -> ()
+  | reports ->
+      (* Alcotest's report may still sit in the Format buffer. *)
+      Format.print_flush ();
+      print_string "Outcomes reached:\n";
+      List.iter (Printf.printf "  %s\n") reports;
+      flush stdout
+
+let run_property_test (Test { suite; name; outcomes; gens; f }) config =
   let seed =
     match config.seed with Some s -> s | None -> Random.int64 Int64.max_int
   in
@@ -588,6 +635,8 @@ let run_property_test (Test { gens; f; _ }) config =
   let npass = ref 0 in
   let ndiscarded = ref 0 in
   let failure = ref None in
+  let counts = Hashtbl.create 8 in
+  let count o = try Hashtbl.find counts o with Not_found -> 0 in
   let max_iter = if config.infinite then max_int else config.repeat in
   let start_time = Unix.gettimeofday () in
   let within_budget () =
@@ -598,24 +647,33 @@ let run_property_test (Test { gens; f; _ }) config =
     let state =
       { chan = src_of_seed s; buf = Bytes.make 256 '0'; offset = 0; len = 0 }
     in
-    let status =
-      try with_timeout config.timeout (fun () -> run_once gens f state)
+    let status, reached =
+      try with_timeout config.timeout (fun () -> run_once outcomes gens f state)
       with Timeout ->
-        TestExn
-          ( Timeout,
-            Printexc.get_raw_backtrace (),
-            fun ppf () -> pp ppf "<timeout after %ds>" config.timeout )
+        ( TestExn
+            ( Timeout,
+              Printexc.get_raw_backtrace (),
+              fun ppf () -> pp ppf "<timeout after %ds>" config.timeout ),
+          Hashtbl.create 0 )
     in
     match classify_status status with
     | `Pass ->
         incr npass;
+        Hashtbl.iter
+          (fun o () -> Hashtbl.replace counts o (count o + 1))
+          reached;
         if config.verbose then Printf.printf "  pass %d\n%!" !npass
     | `Bad -> incr ndiscarded
     | `Fail -> failure := Some status
   done;
+  if outcomes <> [] then
+    outcome_reports :=
+      Format.asprintf "%s/%s: %d samples: %a" suite name !npass pp_counts
+        (outcomes, count)
+      :: !outcome_reports;
   match !failure with
   | Some status -> Alcotest.fail (Format.asprintf "%a" print_status status)
-  | None ->
+  | None -> (
       (* A run that reached the end of its budget without ever getting past a
          guard has checked nothing, and reporting that as a pass is
          indistinguishable from reporting a property that held. It is how a
@@ -627,7 +685,18 @@ let run_property_test (Test { gens; f; _ }) config =
              "no iteration ran: %d generated input%s rejected by a guard, and \
               the property was never evaluated"
              !ndiscarded
-             (if !ndiscarded = 1 then " was" else "s were"))
+             (if !ndiscarded = 1 then " was" else "s were"));
+      (* An outcome no passing sample reached is a branch the property never
+         checked: a decoder that refuses every input passes a roundtrip
+         property on every sample. *)
+      match List.filter (fun o -> count o = 0) outcomes with
+      | [] -> ()
+      | missed ->
+          Alcotest.fail
+            (Format.asprintf "outcome%s %s never reached in %d samples: %a"
+               (if List.length missed = 1 then "" else "s")
+               (String.concat ", " (List.map (Printf.sprintf "%S") missed))
+               !npass pp_counts (outcomes, count)))
 
 let run_with_alcotest name tests =
   let groups = Hashtbl.create 16 in
@@ -641,6 +710,7 @@ let run_with_alcotest name tests =
     Hashtbl.fold (fun group tcs acc -> (group, List.rev tcs) :: acc) groups []
     |> List.sort (fun (a, _) (b, _) -> String.compare a b)
   in
+  at_exit print_outcome_reports;
   Alcotest.run_with_args name config_term suites
 
 (* {1 AFL runner} *)
@@ -655,10 +725,10 @@ let run_afl tests file =
       in
       let status =
         try
-          let (Test { gens; f; _ }) =
+          let (Test { outcomes; gens; f; _ }) =
             List.nth tests (choose_int (List.length tests) state)
           in
-          run_once gens f state
+          fst (run_once outcomes gens f state)
         with BadTest s -> BadInput s
       in
       Unix.close fd;
@@ -706,7 +776,7 @@ let generate_corpus dir tests =
   let max_attempts = 200 in
   let shortfalls = ref [] in
   List.iter
-    (fun (Test { suite; name; gens; f }) ->
+    (fun (Test { suite; name; outcomes; gens; f }) ->
       let good = ref 0 in
       let attempts = ref 0 in
       let discarded = ref 0 in
@@ -723,7 +793,7 @@ let generate_corpus dir tests =
             len = 0;
           }
         in
-        let status = run_once gens f state in
+        let status, _ = run_once outcomes gens f state in
         match classify_status status with
         | `Pass ->
             let filename = Printf.sprintf "%s/seed_%03d" dir !count in
@@ -755,17 +825,32 @@ let generate_corpus dir tests =
     exit 1)
 
 type test_case =
-  | TC : { name : string; gens : ('f, unit) gens; f : 'f } -> test_case
+  | TC : {
+      name : string;
+      outcomes : string list;
+      gens : ('f, unit) gens;
+      f : 'f;
+    }
+      -> test_case
 
-let test_case name gens f = TC { name; gens; f }
+let rec first_duplicate = function
+  | [] -> None
+  | o :: rest -> if List.mem o rest then Some o else first_duplicate rest
+
+let test_case ?(outcomes = []) name gens f =
+  match first_duplicate outcomes with
+  | Some o ->
+      invalid_arg
+        (Printf.sprintf "Alcobar.test_case %S: outcome %S declared twice" name o)
+  | None -> TC { name; outcomes; gens; f }
 
 let run name suites =
   let tests =
     List.concat_map
       (fun (suite_name, tcs) ->
         List.map
-          (fun (TC { name; gens; f }) ->
-            Test { suite = suite_name; name; gens; f })
+          (fun (TC { name; outcomes; gens; f }) ->
+            Test { suite = suite_name; name; outcomes; gens; f })
           tcs)
       suites
   in

@@ -24,6 +24,38 @@ let () = run "my_lib" [ ("arith", [ identity ]) ]
 This mirrors [`Alcotest.run`](https://mirage.github.io/alcotest): the first
 argument names the run, the second is a list of `(suite_name, tests)` pairs.
 
+## Naming the outcomes a property reaches
+
+A property that returns `()` on every branch passes whether or not its
+samples ever take the branch that checks something. A roundtrip test over a
+decoder that refuses every generated input is green and tests nothing. A
+test case can name its outcomes, and the property reports the one each
+sample reaches with `reach`:
+
+```ocaml
+let roundtrip buf =
+  match Foo.decode buf with
+  | Error _ -> reach "refused"
+  | Ok v ->
+      reach "decoded";
+      check_eq (Foo.decode (Foo.encode v)) (Ok v)
+
+let suite =
+  ("foo", [ test_case ~outcomes:[ "decoded"; "refused" ] "roundtrip" [ bytes ] roundtrip ])
+```
+
+A property run counts the passing samples that reached each outcome, prints
+the counts after the Alcotest report, and fails the test when an outcome was
+reached by no passing sample:
+
+```
+Outcomes reached:
+  foo/roundtrip: 5000 samples: decoded 0, refused 5000
+```
+
+`reach` with an outcome the test case does not declare fails that sample, so
+a misspelt outcome is reported where it is reached.
+
 ## Running tests
 
 Every alcobar test binary supports three modes, detected automatically:

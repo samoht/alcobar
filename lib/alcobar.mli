@@ -207,10 +207,29 @@ val pp_option : 'a printer -> 'a option printer
 type test_case
 (** An opaque test case. *)
 
-val test_case : string -> ('f, unit) gens -> 'f -> test_case
-(** [test_case name generators test_fn] creates a test case: [test_fn] is run
-    with random data produced by [generators]. Any failure is reported annotated
-    with [name]. *)
+val test_case :
+  ?outcomes:string list -> string -> ('f, unit) gens -> 'f -> test_case
+(** [test_case ~outcomes name generators test_fn] creates a test case: [test_fn]
+    is run with random data produced by [generators]. Any failure is reported
+    annotated with [name].
+
+    [outcomes] (default [[]]) names the outcomes [test_fn] reports with
+    {!reach}, such as the [Ok] and [Error] branches of a decoder. A property run
+    counts, for each outcome, the passing samples that reached it, prints the
+    counts when the process exits, and fails the test when no passing sample
+    reached an outcome: a roundtrip property whose decoder refuses every
+    generated input then fails instead of passing on every sample.
+
+    @raise Invalid_argument if [outcomes] names an outcome twice. *)
+
+val reach : string -> unit
+(** [reach outcome] records that the running sample reached [outcome]. A sample
+    counts once towards each outcome it reaches, however many times it calls
+    [reach] with it.
+
+    [reach] fails the sample when [outcome] is not among the outcomes its test
+    case declares, so a misspelt outcome is reported where it is reached.
+    Outside a sample it does nothing. *)
 
 val run : string -> (string * test_case list) list -> unit
 (** [run name suites] runs [suites]. Each suite is a pair of a suite name and

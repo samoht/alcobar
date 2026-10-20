@@ -1,3 +1,9 @@
+## unreleased
+
+- `test_case ~outcomes` and `reach`: a property names the outcomes its samples
+  reach, a run prints how many passing samples reached each one, and a test
+  fails when no passing sample reached a declared outcome (@samoht)
+
 ## v0.3.2 (20/08/2026)
 
 - Fail a property whose guard rejected every generated input, instead of

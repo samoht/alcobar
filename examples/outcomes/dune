@@ -1,0 +1,60 @@
+(executables
+ (names covered hollow undeclared)
+ (libraries alcobar))
+
+; Each declared outcome is counted once per passing sample, and the run
+; prints the counts. The budget is off so the repeat count alone decides how
+; many samples run, which makes "always" exactly that count.
+
+(rule
+ (alias runtest)
+ (deps covered.exe)
+ (action
+  (progn
+   (with-outputs-to
+    covered.output
+    (run %{exe:covered.exe} --seed 1 --repeat 100 --budget 0))
+   (run
+    grep
+    -F
+    -q
+    "outcomes/parity: 100 samples: always 100, even "
+    covered.output))))
+
+; No sample decodes, so the run fails and says so with the counts.
+
+(rule
+ (alias runtest)
+ (deps hollow.exe)
+ (action
+  (progn
+   (with-accepted-exit-codes
+    1
+    (with-outputs-to
+     hollow.output
+     (run %{exe:hollow.exe} --seed 1 --repeat 50 --budget 0)))
+   (run
+    grep
+    -F
+    -q
+    "outcome \"decoded\" never reached in 50 samples: decoded 0, refused 50"
+    hollow.output))))
+
+; A misspelt outcome fails the sample that reaches it.
+
+(rule
+ (alias runtest)
+ (deps undeclared.exe)
+ (action
+  (progn
+   (with-accepted-exit-codes
+    1
+    (with-outputs-to
+     undeclared.output
+     (run %{exe:undeclared.exe} --seed 1 --repeat 100 --budget 0)))
+   (run
+    grep
+    -F
+    -q
+    "reach \"negativ\": not an outcome this test declares (non-negative, negative)"
+    undeclared.output))))

@@ -698,7 +698,15 @@ let run_property_test (Test { suite; name; outcomes; gens; f }) config =
                (String.concat ", " (List.map (Printf.sprintf "%S") missed))
                !npass pp_counts (outcomes, count)))
 
-let run_with_alcotest name tests =
+(* A verdict as an Alcotest case: a failure is the test's, a [guard] or
+   [bad_test] skips it. *)
+let run_verdict check (_ : config) =
+  match check () with
+  | () -> ()
+  | exception FailedTest p -> Alcotest.fail (Format.asprintf "%a" p ())
+  | exception BadTest _ -> Alcotest.skip ()
+
+let run_with_alcotest name tests verdicts =
   let groups = Hashtbl.create 16 in
   List.iter
     (fun (Test { suite; name; _ } as test) ->
@@ -709,6 +717,21 @@ let run_with_alcotest name tests =
   let suites =
     Hashtbl.fold (fun group tcs acc -> (group, List.rev tcs) :: acc) groups []
     |> List.sort (fun (a, _) (b, _) -> String.compare a b)
+  in
+  let suites =
+    match verdicts with
+    | [] -> suites
+    | verdicts ->
+        suites
+        @ [
+            ( "verdict",
+              List.map
+                (fun (suite, name, check) ->
+                  Alcotest.test_case
+                    (suite ^ ": " ^ name)
+                    `Quick (run_verdict check))
+                verdicts );
+          ]
   in
   at_exit print_outcome_reports;
   Alcotest.run_with_args name config_term suites
@@ -832,6 +855,9 @@ type test_case =
       f : 'f;
     }
       -> test_case
+  | Verdict of { name : string; check : unit -> unit }
+
+let verdict name check = Verdict { name; check }
 
 let rec first_duplicate = function
   | [] -> None
@@ -848,9 +874,21 @@ let run name suites =
   let tests =
     List.concat_map
       (fun (suite_name, tcs) ->
-        List.map
-          (fun (TC { name; outcomes; gens; f }) ->
-            Test { suite = suite_name; name; outcomes; gens; f })
+        List.filter_map
+          (function
+            | TC { name; outcomes; gens; f } ->
+                Some (Test { suite = suite_name; name; outcomes; gens; f })
+            | Verdict _ -> None)
+          tcs)
+      suites
+  in
+  let verdicts =
+    List.concat_map
+      (fun (suite_name, tcs) ->
+        List.filter_map
+          (function
+            | Verdict { name; check } -> Some (suite_name, name, check)
+            | TC _ -> None)
           tcs)
       suites
   in
@@ -859,7 +897,7 @@ let run name suites =
   | None -> (
       match detect_afl_file () with
       | Some file -> run_afl tests file
-      | None -> run_with_alcotest name tests)
+      | None -> run_with_alcotest name tests verdicts)
 
 module Syntax = struct
   let ( let* ) = dynamic_bind

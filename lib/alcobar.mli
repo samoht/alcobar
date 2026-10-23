@@ -231,6 +231,18 @@ val reach : string -> unit
     case declares, so a misspelt outcome is reported where it is reached.
     Outside a sample it does nothing. *)
 
+val verdict : string -> (unit -> unit) -> test_case
+(** [verdict name check] is a case that judges a whole campaign rather than a
+    sample, such as a coverage floor over the outcomes the properties counted.
+    An Alcotest run runs [check] once, after every property of the run, as the
+    test [SUITE: name] of a last group, [verdict]; a {!fail} or {!check} in it
+    fails that test, and a {!guard} that rejects skips it.
+
+    The AFL runner and [--gen-corpus] never offer it an input: under AFL a
+    persistent process runs many inputs, so a check over counts kept between
+    samples would read whatever the earlier inputs left, or nothing in a fresh
+    process, and report the input as a crash. *)
+
 val run : string -> (string * test_case list) list -> unit
 (** [run name suites] runs [suites]. Each suite is a pair of a suite name and
     its test cases. Mirrors {!Alcotest.run}: CLI flags (including Alcotest's
@@ -238,9 +250,12 @@ val run : string -> (string * test_case list) list -> unit
 
     Three modes are detected automatically:
     - [--gen-corpus DIR]: generate seed corpus files in [DIR] and exit. Each
-      file contains the exact bytes consumed by generators during a passing run.
+      file holds the bytes AFL mode reads to choose its test, then the exact
+      bytes its generators consumed during a passing run.
     - If the last argument is an existing file, run in AFL mode.
-    - Otherwise, run as an Alcotest test suite. *)
+    - Otherwise, run as an Alcotest test suite.
+
+    Only the properties, never a {!verdict}, are seeded and run under AFL. *)
 
 (** {2:aborting Aborting Tests} *)
 

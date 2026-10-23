@@ -1,5 +1,16 @@
 ## unreleased
 
+- Require OCaml 4.11 or later: opam-repository has moved older compilers to
+  its archive, so 4.08 to 4.10 are no longer tested (@samoht)
+
+- `--gen-corpus` starts each seed with the bytes that choose its test, so a
+  seed replays its own test in a suite of several and afl-cmin accepts the
+  corpus (@samoht)
+
+- `verdict` adds a case that judges a whole campaign, such as a coverage
+  floor: it runs once after every property, and AFL never offers it an input
+  (@samoht)
+
 - `test_case ~outcomes` and `reach`: a property names the outcomes its samples
   reach, a run prints how many passing samples reached each one, and a test
   fails when no passing sample reached a declared outcome (@samoht)

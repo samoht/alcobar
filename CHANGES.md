@@ -3,16 +3,13 @@
 - Require OCaml 4.11 or later: opam-repository has moved older compilers to
   its archive, so 4.08 to 4.10 are no longer tested (@samoht)
 
-- `--gen-corpus` starts each seed with the bytes the AFL runner reads to
-  choose a test, so a seed runs the test it was generated for; a seed of a
-  suite of several tests ran another test on shifted bytes, or none, and
-  afl-cmin refused a corpus whose first seed reached no instrumented code
-  (@samoht)
+- `--gen-corpus` starts each seed with the bytes that choose its test, so a
+  seed replays its own test in a suite of several and afl-cmin accepts the
+  corpus (@samoht)
 
-- `verdict`: a case that judges a whole campaign, such as a coverage floor,
-  runs once after every property of an Alcotest run and is never offered an
-  AFL input or seeded, so an AFL persistent process no longer reports it as a
-  crash on counts its earlier inputs left (@samoht)
+- `verdict` adds a case that judges a whole campaign, such as a coverage
+  floor: it runs once after every property, and AFL never offers it an input
+  (@samoht)
 
 - `test_case ~outcomes` and `reach`: a property names the outcomes its samples
   reach, a run prints how many passing samples reached each one, and a test

@@ -17,7 +17,7 @@
 "\| [afl-fuzz](http://lcamtuf.coredump.cx/afl/).
  )
  (depends
-  (ocaml (>= "4.08"))
+  (ocaml (>= "4.11"))
   alcotest
   (cmdliner (>= 1.1.0))
   (afl-persistent (>= "1.1"))

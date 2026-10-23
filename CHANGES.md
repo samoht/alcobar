@@ -1,5 +1,8 @@
 ## unreleased
 
+- Require OCaml 4.11 or later: opam-repository has moved older compilers to
+  its archive, so 4.08 to 4.10 are no longer tested (@samoht)
+
 - `test_case ~outcomes` and `reach`: a property names the outcomes its samples
   reach, a run prints how many passing samples reached each one, and a test
   fails when no passing sample reached a declared outcome (@samoht)

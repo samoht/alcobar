@@ -12,10 +12,11 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # 4.08 is the lower bound in dune-project; 4.14 is the last 4.x. The
-        # PRNG differs between 4.x and 5.x, so tests that pass on one line of
-        # compilers can fail on the other.
-        ocaml-compiler: ['4.08', '4.14', '5.4']
+        # 4.11 is the lower bound in dune-project, the oldest compiler left in
+        # opam-repository; 4.14 is the last 4.x. The PRNG differs between 4.x
+        # and 5.x, so tests that pass on one line of compilers can fail on the
+        # other.
+        ocaml-compiler: ['4.11', '4.14', '5.4']
 
     steps:
       - uses: actions/checkout@v5

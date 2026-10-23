@@ -18,7 +18,7 @@
  )
  (depends
   (ocaml (>= "4.11"))
-  alcotest
+  (alcotest (>= "1.7.0"))
   (cmdliner (>= 1.1.0))
   (afl-persistent (>= "1.1"))
   ("calendar" (and (>= "2.00") :with-test))

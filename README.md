@@ -71,8 +71,9 @@ Every alcobar test binary supports three modes, detected automatically:
   - `--alcobar-verbose` — log each passing iteration
 
 - **Seed corpus mode**: pass `--gen-corpus DIR`. Alcobar runs each test a few
-  times and writes the exact bytes consumed by generators to `DIR/seed_NNN`.
-  Use these to seed `afl-fuzz`.
+  times and writes to `DIR/seed_NNN` the bytes AFL mode reads to choose that
+  test, then the exact bytes its generators consumed, so each seed runs the
+  test it was generated for. Use these to seed `afl-fuzz`.
 
 - **AFL mode**: pass a file as the last argument. Alcobar reads from that file
   and drives a single test iteration — the form `afl-fuzz` expects when

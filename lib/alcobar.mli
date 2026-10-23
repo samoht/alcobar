@@ -250,7 +250,8 @@ val run : string -> (string * test_case list) list -> unit
 
     Three modes are detected automatically:
     - [--gen-corpus DIR]: generate seed corpus files in [DIR] and exit. Each
-      file contains the exact bytes consumed by generators during a passing run.
+      file holds the bytes AFL mode reads to choose its test, then the exact
+      bytes its generators consumed during a passing run.
     - If the last argument is an existing file, run in AFL mode.
     - Otherwise, run as an Alcotest test suite.
 

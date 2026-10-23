@@ -262,6 +262,19 @@ let choose_int n state =
     Int32.(to_int (abs (rem (read_int32 state) (of_int n))))
   else Int64.(to_int (abs (rem (read_int64 state) (of_int n))))
 
+(* The bytes [choose_int n] reads to choose [i], for [0 <= i < n]. *)
+let choice_bytes n i =
+  if n = 1 then ""
+  else if n <= 0x100 then String.make 1 (Char.chr i)
+  else if n < 0x1000000 then (
+    let b = Bytes.create 4 in
+    Bytes.set_int32_le b 0 (Int32.of_int i);
+    Bytes.to_string b)
+  else
+    let b = Bytes.create 8 in
+    Bytes.set_int64_le b 0 (Int64.of_int i);
+    Bytes.to_string b
+
 let range ?(min = 0) n =
   if n <= 0 then
     raise (Invalid_argument "Alcobar.range: argument n must be positive");
@@ -798,8 +811,12 @@ let generate_corpus dir tests =
   let seeds_per_test = 5 in
   let max_attempts = 200 in
   let shortfalls = ref [] in
-  List.iter
-    (fun (Test { suite; name; outcomes; gens; f }) ->
+  (* A seed starts with the bytes [run_afl] reads to choose its test, so an AFL
+     input made from it runs the test it was generated for, on its bytes. *)
+  let choices = List.length tests in
+  List.iteri
+    (fun index (Test { suite; name; outcomes; gens; f }) ->
+      let choice = choice_bytes choices index in
       let good = ref 0 in
       let attempts = ref 0 in
       let discarded = ref 0 in
@@ -808,6 +825,7 @@ let generate_corpus dir tests =
         incr attempts;
         let s = Random.State.int64 seedsrc Int64.max_int in
         let record = Buffer.create 256 in
+        Buffer.add_string record choice;
         let state =
           {
             chan = Recording (prng_state_of_seed s, record);

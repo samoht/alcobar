@@ -1,19 +1,16 @@
-## unreleased
+## v0.4.0 (23/10/2026)
 
-- Require OCaml 4.11 or later: opam-repository has moved older compilers to
-  its archive, so 4.08 to 4.10 are no longer tested (@samoht)
-
-- `--gen-corpus` starts each seed with the bytes that choose its test, so a
-  seed replays its own test in a suite of several and afl-cmin accepts the
-  corpus (@samoht)
-
-- `verdict` adds a case that judges a whole campaign, such as a coverage
-  floor: it runs once after every property, and AFL never offers it an input
-  (@samoht)
-
-- `test_case ~outcomes` and `reach`: a property names the outcomes its samples
-  reach, a run prints how many passing samples reached each one, and a test
-  fails when no passing sample reached a declared outcome (@samoht)
+- Drop OCaml 4.08 to 4.10, which opam-repository no longer carries: alcobar
+  now requires OCaml 4.11 or later (#4, @samoht)
+- Add `test_case ~outcomes` and `reach`: name the cases a property must
+  exercise, see how often each was hit, and fail when one never is, so a
+  generator that silently stops covering a case is caught (@samoht)
+- Add `verdict`, a check over the whole campaign (such as "every outcome was
+  reached") run once after all properties; AFL never feeds it inputs, so a
+  campaign-wide check no longer turns into a fuzzing crash (#3, @samoht)
+- Fix `--gen-corpus` for suites with several tests: each seed now replays the
+  test it was made for, so `afl-cmin` accepts the corpus instead of reporting
+  "No instrumentation detected" (#3, @samoht)
 
 ## v0.3.2 (20/08/2026)
 

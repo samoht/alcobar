@@ -56,31 +56,100 @@ Outcomes reached:
 `reach` with an outcome the test case does not declare fails that sample, so
 a misspelt outcome is reported where it is reached.
 
+## Checking a whole campaign
+
+Some checks are about the run, not about one sample: a floor on how many
+samples were decoded, or a share of inputs a parser must accept. Such a check
+cannot be a test case, because under AFL every test case is offered inputs,
+and a check over counts kept between samples would read whatever earlier
+inputs left. Declare it with `verdict` instead:
+
+```ocaml
+let decoded = ref 0
+
+let roundtrip buf =
+  match Foo.decode buf with
+  | Error _ -> ()
+  | Ok v ->
+      incr decoded;
+      check_eq (Foo.decode (Foo.encode v)) (Ok v)
+
+let enough_decoded () =
+  if !decoded < 100 then failf "only %d samples decoded" !decoded
+
+let suite =
+  ( "foo",
+    [ test_case "roundtrip" [ bytes ] roundtrip; verdict "decoded" enough_decoded ] )
+```
+
+An Alcotest run runs each verdict once, after every property, as a test of a
+last group named `verdict`; `fail` or `check` in it fails that test. AFL and
+`--gen-corpus` never run a verdict.
+
 ## Running tests
 
 Every alcobar test binary supports three modes, detected automatically:
 
 - **Alcotest mode (default)**: run as a regular test suite. Supports all of
   Alcotest's CLI flags (filtering, verbose, etc.) as well as:
-  - `--seed INT64` — fix the PRNG seed
-  - `--repeat N` — iterations per test (default: 5000)
-  - `--timeout N` — per-iteration timeout in seconds (default: 2; also reads
+  - `--seed INT64`: fix the PRNG seed
+  - `--repeat N`: iterations per test (default: 5000)
+  - `--timeout N`: per-iteration timeout in seconds (default: 2; also reads
     `ALCOBAR_TIMEOUT`)
-  - `--budget SECONDS` — total wall-clock budget per test (default: 2)
-  - `--infinite` / `-i` — run until a failure is found
-  - `--alcobar-verbose` — log each passing iteration
+  - `--budget SECONDS`: total wall-clock budget per test (default: 2)
+  - `--infinite` / `-i`: run until a failure is found
+  - `--alcobar-verbose`: log each passing iteration
 
 - **Seed corpus mode**: pass `--gen-corpus DIR`. Alcobar runs each test a few
   times and writes to `DIR/seed_NNN` the bytes AFL mode reads to choose that
   test, then the exact bytes its generators consumed, so each seed runs the
-  test it was generated for. Use these to seed `afl-fuzz`.
+  test it was generated for. Use these to seed `afl-fuzz`. The first bytes
+  pick a test by its position in the suite, so regenerate the corpus when you
+  add, remove or reorder tests.
 
 - **AFL mode**: pass a file as the last argument. Alcobar reads from that file
-  and drives a single test iteration — the form `afl-fuzz` expects when
+  and drives a single test iteration: the form `afl-fuzz` expects when
   invoked as `afl-fuzz -i in -o out -- ./my_test.exe @@`.
 
 To run under AFL you need a compiler with AFL instrumentation enabled (an
 `opam` switch tagged `+afl`). Build a native-code executable, not bytecode.
+
+### Fuzzing with dune and afl-fuzz
+
+Instead of a `+afl` switch, a dune profile can instrument the build. In
+`dune-workspace` (or the root `dune` file):
+
+```dune
+(env
+ (afl
+  (ocamlopt_flags (:standard -afl-instrument))))
+```
+
+Then give the fuzz executable two rules: a quick property run in
+`dune test`, and an `afl-fuzz` campaign under the `afl` profile, seeded by
+`--gen-corpus`:
+
+```dune
+(executable
+ (name fuzz)
+ (libraries mylib alcobar))
+
+(rule
+ (alias runtest)
+ (enabled_if (<> %{profile} afl))
+ (action (run %{exe:fuzz.exe})))
+
+(rule
+ (alias fuzz)
+ (enabled_if (= %{profile} afl))
+ (action
+  (progn
+   (run %{exe:fuzz.exe} --gen-corpus corpus)
+   (run afl-fuzz -V 60 -i corpus -o _fuzz -- %{exe:fuzz.exe} @@))))
+```
+
+`dune test` runs the properties; `dune build @fuzz --profile afl` fuzzes for
+60 seconds (`-V`) and leaves AFL's findings in `_build/default/<dir>/_fuzz`.
 
 ## Relation to Crowbar
 

@@ -10,7 +10,13 @@
   campaign-wide check no longer turns into a fuzzing crash (#3, @samoht)
 - Fix `--gen-corpus` for suites with several tests: each seed now replays the
   test it was made for, so `afl-cmin` accepts the corpus instead of reporting
-  "No instrumentation detected" (#3, @samoht)
+  "No instrumentation detected"; regenerate a corpus written by 0.3 (#3,
+  @samoht)
+- `--gen-corpus DIR` is a command-line option: `--help` lists it, it takes
+  `--gen-corpus=DIR`, and a missing directory is refused by name instead of
+  reading as an unknown option (#6, @samoht, reported by @patricoferris in #2)
+- The README shows the dune rules to fuzz a test with `afl-fuzz` (#6, @samoht,
+  reported by @patricoferris in #2)
 
 ## v0.3.2 (20/08/2026)
 

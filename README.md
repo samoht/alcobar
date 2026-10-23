@@ -82,6 +82,43 @@ Every alcobar test binary supports three modes, detected automatically:
 To run under AFL you need a compiler with AFL instrumentation enabled (an
 `opam` switch tagged `+afl`). Build a native-code executable, not bytecode.
 
+### Fuzzing with dune and afl-fuzz
+
+Instead of a `+afl` switch, a dune profile can instrument the build. In
+`dune-workspace` (or the root `dune` file):
+
+```dune
+(env
+ (afl
+  (ocamlopt_flags (:standard -afl-instrument))))
+```
+
+Then give the fuzz executable two rules: a quick property run in
+`dune test`, and an `afl-fuzz` campaign under the `afl` profile, seeded by
+`--gen-corpus`:
+
+```dune
+(executable
+ (name fuzz)
+ (libraries mylib alcobar))
+
+(rule
+ (alias runtest)
+ (enabled_if (<> %{profile} afl))
+ (action (run %{exe:fuzz.exe})))
+
+(rule
+ (alias fuzz)
+ (enabled_if (= %{profile} afl))
+ (action
+  (progn
+   (run %{exe:fuzz.exe} --gen-corpus corpus)
+   (run afl-fuzz -V 60 -i corpus -o _fuzz -- %{exe:fuzz.exe} @@))))
+```
+
+`dune test` runs the properties; `dune build @fuzz --profile afl` fuzzes for
+60 seconds (`-V`) and leaves AFL's findings in `_build/default/<dir>/_fuzz`.
+
 ## Relation to Crowbar
 
 Alcobar is a fork of [stedolan/crowbar](https://github.com/stedolan/crowbar).

@@ -571,7 +571,9 @@ let default_timeout =
   | Some s -> ( try int_of_string s with _ -> 2)
   | None -> 2
 
-let config_term =
+(* [gen_corpus dir] writes the seed corpus and returns; the run then exits
+   without running the tests. *)
+let config_term ~gen_corpus =
   let open Cmdliner in
   let seed =
     let doc = "The seed (an int64) for the PRNG." in
@@ -603,10 +605,23 @@ let config_term =
     in
     Arg.(value & opt float 2. & info [ "budget" ] ~docv:"SECONDS" ~doc)
   in
+  let corpus =
+    let doc =
+      "Write a seed corpus for $(b,afl-fuzz) into $(docv) and exit: a few \
+       inputs per test, each running the test it was generated for."
+    in
+    Arg.(
+      value & opt (some string) None & info [ "gen-corpus" ] ~docv:"DIR" ~doc)
+  in
+  let config seed repeat verbose infinite timeout budget = function
+    | Some dir ->
+        gen_corpus dir;
+        exit 0
+    | None -> { seed; repeat; verbose; infinite; timeout; budget }
+  in
   Term.(
-    const (fun seed repeat verbose infinite timeout budget ->
-        { seed; repeat; verbose; infinite; timeout; budget })
-    $ seed $ repeat $ verbose $ infinite $ timeout $ budget)
+    const config $ seed $ repeat $ verbose $ infinite $ timeout $ budget
+    $ corpus)
 
 let with_timeout timeout f =
   if timeout <= 0 then f ()
@@ -719,7 +734,7 @@ let run_verdict check (_ : config) =
   | exception FailedTest p -> Alcotest.fail (Format.asprintf "%a" p ())
   | exception BadTest _ -> Alcotest.skip ()
 
-let run_with_alcotest name tests verdicts =
+let run_with_alcotest ~gen_corpus name tests verdicts =
   let groups = Hashtbl.create 16 in
   List.iter
     (fun (Test { suite; name; _ } as test) ->
@@ -747,7 +762,7 @@ let run_with_alcotest name tests verdicts =
           ]
   in
   at_exit print_outcome_reports;
-  Alcotest.run_with_args name config_term suites
+  Alcotest.run_with_args name (config_term ~gen_corpus) suites
 
 (* {1 AFL runner} *)
 
@@ -778,18 +793,9 @@ let detect_afl_file () =
   let n = Array.length Sys.argv in
   if n >= 2 then
     let last = Sys.argv.(n - 1) in
-    if Sys.file_exists last then Some last else None
+    if Sys.file_exists last && not (Sys.is_directory last) then Some last
+    else None
   else None
-
-let detect_gen_corpus () =
-  let n = Array.length Sys.argv in
-  let rec find i =
-    if i >= n then None
-    else if Sys.argv.(i) = "--gen-corpus" && i + 1 < n then
-      Some Sys.argv.(i + 1)
-    else find (i + 1)
-  in
-  find 1
 
 let shortfall ~suite ~name ~good ~seeds_per_test ~attempts ~discarded ~failed =
   let reasons =
@@ -910,12 +916,12 @@ let run name suites =
           tcs)
       suites
   in
-  match detect_gen_corpus () with
-  | Some dir -> generate_corpus dir tests
-  | None -> (
-      match detect_afl_file () with
-      | Some file -> run_afl tests file
-      | None -> run_with_alcotest name tests verdicts)
+  match detect_afl_file () with
+  | Some file -> run_afl tests file
+  | None ->
+      run_with_alcotest
+        ~gen_corpus:(fun dir -> generate_corpus dir tests)
+        name tests verdicts
 
 module Syntax = struct
   let ( let* ) = dynamic_bind

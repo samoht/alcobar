@@ -1,0 +1,71 @@
+## unreleased
+
+- Require OCaml 4.11 or later: opam-repository has moved older compilers to
+  its archive, so 4.08 to 4.10 are no longer tested (@samoht)
+
+- `--gen-corpus` starts each seed with the bytes the AFL runner reads to
+  choose a test, so a seed runs the test it was generated for; a seed of a
+  suite of several tests ran another test on shifted bytes, or none, and
+  afl-cmin refused a corpus whose first seed reached no instrumented code
+  (@samoht)
+
+- `verdict`: a case that judges a whole campaign, such as a coverage floor,
+  runs once after every property of an Alcotest run and is never offered an
+  AFL input or seeded, so an AFL persistent process no longer reports it as a
+  crash on counts its earlier inputs left (@samoht)
+
+- `test_case ~outcomes` and `reach`: a property names the outcomes its samples
+  reach, a run prints how many passing samples reached each one, and a test
+  fails when no passing sample reached a declared outcome (@samoht)
+
+## v0.3.2 (20/08/2026)
+
+- Fail a property whose guard rejected every generated input, instead of
+  reporting a pass (#1, @samoht)
+- Report which tests `--gen-corpus` came up short on, and fail when no test
+  could be seeded at all, instead of printing a count that reads like a
+  complete corpus (@samoht)
+- Take the `calendar` example out of `dune runtest`: the property it
+  demonstrates finds a genuine bug in `calendar`, which about half of all
+  seeds hit, so the release failed opam CI on the compilers whose default
+  seed found it (@samoht)
+- Run CI on 4.08 and 4.14 as well as 5.4 (@samoht)
+
+## v0.3.1 (21/04/2026)
+
+Fork of Crowbar, renamed to Alcobar.
+
+- New upstream: `samoht/alcobar` (maintainer: Thomas Gazagnaire).
+- Adopt `ocamlformat` (version 0.29.0).
+- Alcotest-compatible API: `test_case` and `run` replace the old
+  `add_test` interface; property tests run via `Alcotest.run_with_args`,
+  AFL mode is preserved by detecting a file argument. Examples now build
+  as executables with an explicit `runtest` rule, so test binaries can
+  be invoked directly with CLI flags.
+- `--gen-corpus DIR` flag generates seed corpus files from passing
+  test runs, capturing the exact bytes consumed by generators.
+- Per-test timeout (`ALCOBAR_TIMEOUT` env var, `--timeout` flag);
+  defaults to 2 seconds. Use `--timeout 0` to disable.
+- Per-test time budget (`--budget SECONDS`); iteration stops when the
+  budget is exhausted. Defaults to 2 seconds. Use `--budget 0` to disable.
+- README rewritten for the alcobar fork.
+- GitHub Actions CI on push and pull request.
+- Library sources moved from `src/` to `lib/`.
+- Restructure examples as fuzz runners: each directory has `fuzz.ml`
+  plus a `fuzz_<lib>.ml[i]` module exporting a `suite` value.
+- Require dune >= 3.21 and use `%{dune-warnings}` for dev flags.
+
+v0.2.1 (04 March 2022)
+---------------------
+
+Build and compatibility fixes.
+
+v0.2 (04 May 2020)
+---------------------
+
+New generators, printers and port to dune.
+
+v0.1 (01 February 2018)
+---------------------
+
+Initial release

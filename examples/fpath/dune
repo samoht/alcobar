@@ -1,0 +1,9 @@
+(executable
+ (name fuzz)
+ (libraries alcobar fpath))
+
+(rule
+ (alias runtest)
+ (deps fuzz.exe)
+ (action
+  (run %{exe:fuzz.exe})))

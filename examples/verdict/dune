@@ -1,0 +1,43 @@
+(executable
+ (name campaign)
+ (libraries alcobar))
+
+; "A" picks the second case of two in the AFL runner. A campaign's coverage
+; check is no case an input picks: under AFL it would read the counts an
+; earlier input of the same persistent process left, or none, and report the
+; input as a crash. So an AFL run on this input runs the property, and passes.
+
+(rule
+ (with-stdout-to
+  picks-the-second
+  (echo "AA")))
+
+(rule
+ (alias runtest)
+ (deps campaign.exe picks-the-second)
+ (action
+  (run %{exe:campaign.exe} picks-the-second)))
+
+; The check runs once the campaign is over, and reads all of it.
+
+(rule
+ (alias runtest)
+ (deps campaign.exe)
+ (action
+  (with-outputs-to
+   whole.output
+   (run %{exe:campaign.exe} --seed 1 --repeat 20 --budget 0))))
+
+; A campaign under its floor fails, and says so.
+
+(rule
+ (alias runtest)
+ (deps campaign.exe)
+ (action
+  (progn
+   (with-accepted-exit-codes
+    1
+    (with-outputs-to
+     short.output
+     (run %{exe:campaign.exe} --seed 1 --repeat 5 --budget 0)))
+   (run grep -F -q "the campaign ran 5 samples, under 10" short.output))))

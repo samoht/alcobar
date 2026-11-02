@@ -1,0 +1,21 @@
+(executable
+ (name two)
+ (libraries alcobar))
+
+; Each seed --gen-corpus writes, run as an AFL input, runs the case it was
+; generated for: five seeds of each case, in the order they were written.
+
+(rule
+ (alias runtest)
+ (deps two.exe)
+ (action
+  (progn
+   (with-stdout-to
+    replay.output
+    (system
+     "./two.exe --gen-corpus corpus > /dev/null && for seed in corpus/*; do ./two.exe $seed; done"))
+   (with-stdout-to
+    replay.expected
+    (echo
+     "first\nfirst\nfirst\nfirst\nfirst\nsecond\nsecond\nsecond\nsecond\nsecond\n"))
+   (run diff replay.expected replay.output))))

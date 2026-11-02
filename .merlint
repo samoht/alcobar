@@ -1,0 +1,5 @@
+rules:
+  # Examples are small fuzz demos, not library code. They may use
+  # stdlib Str and Format freely — no need to pull in Re or Fmt.
+  - files: examples/**
+    exclude: [E200, E205]

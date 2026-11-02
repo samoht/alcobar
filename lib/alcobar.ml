@@ -91,7 +91,7 @@ let with_printer pp gen =
 let result gena genb =
   choose [ map [ gena ] (fun va -> Ok va); map [ genb ] (fun vb -> Error vb) ]
 
-let pp = Format.fprintf
+let pp = Fmt.pf
 let pp_int ppf n = pp ppf "%d" n
 let pp_int32 ppf n = pp ppf "%s" (Int32.to_string n)
 let pp_int64 ppf n = pp ppf "%s" (Int64.to_string n)
@@ -121,8 +121,8 @@ let pp_array pv ppf a =
     a
 
 let pp_option pv ppf = function
-  | None -> Format.fprintf ppf "None"
-  | Some x -> Format.fprintf ppf "(Some %a)" pv x
+  | None -> Fmt.pf ppf "None"
+  | Some x -> Fmt.pf ppf "(Some %a)" pv x
 
 exception BadTest of string
 exception FailedTest of unit printer
@@ -131,7 +131,7 @@ let guard = function true -> () | false -> raise (BadTest "guard failed")
 let bad_test () = raise (BadTest "bad test")
 let nonetheless = function None -> bad_test () | Some a -> a
 
-let get_data chan buf off len =
+let read chan buf off len =
   match chan with
   | Random rand ->
       for i = off to off + len - 1 do
@@ -155,7 +155,7 @@ let refill src =
   src.len <- remaining;
   src.offset <- 0;
   let read =
-    get_data src.chan src.buf remaining (Bytes.length src.buf - remaining)
+    read src.chan src.buf remaining (Bytes.length src.buf - remaining)
   in
   if read = 0 then raise (BadTest "premature end of file")
   else src.len <- remaining + read
@@ -422,7 +422,7 @@ and gen_apply : type k res.
   (v, pvs)
 
 let fail s = raise (FailedTest (fun ppf () -> pp ppf "%s" s))
-let failf format = Format.kasprintf fail format
+let failf format = Fmt.kstr fail format
 
 let check = function
   | true -> ()
@@ -474,11 +474,11 @@ type test =
       -> test
 
 type test_status =
-  | TestPass of unit printer
-  | BadInput of string
-  | GenFail of exn * Printexc.raw_backtrace * unit printer
-  | TestExn of exn * Printexc.raw_backtrace * unit printer
-  | TestFail of unit printer * unit printer
+  | Test_pass of unit printer
+  | Bad_input of string
+  | Gen_fail of exn * Printexc.raw_backtrace * unit printer
+  | Test_exn of exn * Printexc.raw_backtrace * unit printer
+  | Test_fail of unit printer * unit printer
 
 (* [run_once outcomes gens f state] runs one sample and returns its status
    with the outcomes, among [outcomes], that it reached. *)
@@ -490,19 +490,19 @@ let run_once outcomes (gens : (_, unit) gens) f state =
       ~finally:(fun () -> in_flight := None)
       (fun () ->
         match gen_apply 100 state gens f with
-        | Ok (), pvs -> TestPass pvs
-        | Error (FailedTest p, _), pvs -> TestFail (p, pvs)
-        | Error (e, bt), pvs -> TestExn (e, bt, pvs)
-        | exception BadTest s -> BadInput s
-        | exception GenFailed (e, bt, pvs) -> GenFail (e, bt, pvs))
+        | Ok (), pvs -> Test_pass pvs
+        | Error (FailedTest p, _), pvs -> Test_fail (p, pvs)
+        | Error (e, bt), pvs -> Test_exn (e, bt, pvs)
+        | exception BadTest s -> Bad_input s
+        | exception GenFailed (e, bt, pvs) -> Gen_fail (e, bt, pvs))
   in
   (status, sample.reached)
 
 let classify_status = function
-  | TestPass _ -> `Pass
-  | BadInput _ -> `Bad
-  | GenFail _ -> `Fail (* slightly dubious... *)
-  | TestExn _ | TestFail _ -> `Fail
+  | Test_pass _ -> `Pass
+  | Bad_input _ -> `Bad
+  | Gen_fail _ -> `Fail (* slightly dubious... *)
+  | Test_exn _ | Test_fail _ -> `Fail
 
 let print_status ppf status =
   let print_ex ppf (e, bt) =
@@ -511,17 +511,17 @@ let print_status ppf status =
     |> List.iter (pp ppf "@,%s")
   in
   match status with
-  | TestPass pvs ->
+  | Test_pass pvs ->
       pp ppf "When given the input:@.@[<v 4>@,%a@,@]@.the test passed." pvs ()
-  | BadInput s -> pp ppf "The testcase was invalid:@.%s" s
-  | GenFail (e, bt, pvs) ->
+  | Bad_input s -> pp ppf "The testcase was invalid:@.%s" s
+  | Gen_fail (e, bt, pvs) ->
       pp ppf
         "When given the input:@.@[<4>%a@]@.the testcase generator threw an \
          exception:@.@[<v 4>@,\
          %a@,\
          @]"
         pvs () print_ex (e, bt)
-  | TestExn (e, bt, pvs) ->
+  | Test_exn (e, bt, pvs) ->
       pp ppf
         "When given the input:@.@[<v 4>@,\
          %a@,\
@@ -529,7 +529,7 @@ let print_status ppf status =
          %a@,\
          @]"
         pvs () print_ex (e, bt)
-  | TestFail (err, pvs) ->
+  | Test_fail (err, pvs) ->
       pp ppf
         "When given the input:@.@[<v 4>@,\
          %a@,\
@@ -568,7 +568,7 @@ exception Timeout
 
 let default_timeout =
   match Sys.getenv_opt "ALCOBAR_TIMEOUT" with
-  | Some s -> ( try int_of_string s with _ -> 2)
+  | Some s -> ( try int_of_string s with Failure _ -> 2)
   | None -> 2
 
 let config_term =
@@ -624,7 +624,7 @@ let with_timeout timeout f =
 let pp_counts ppf (outcomes, count) =
   pp ppf "%s"
     (String.concat ", "
-       (List.map (fun o -> Printf.sprintf "%s %d" o (count o)) outcomes))
+       (List.map (fun o -> Fmt.str "%s %d" o (count o)) outcomes))
 
 (* The outcome counts of each property run, in the order they ran. They are
    printed when the process exits, after Alcotest's own report. *)
@@ -635,10 +635,43 @@ let print_outcome_reports () =
   | [] -> ()
   | reports ->
       (* Alcotest's report may still sit in the Format buffer. *)
-      Format.print_flush ();
+      Fmt.flush Fmt.stdout ();
       print_string "Outcomes reached:\n";
-      List.iter (Printf.printf "  %s\n") reports;
+      List.iter (Fmt.pr "  %s\n") reports;
       flush stdout
+
+let finish_property ~suite ~name ~outcomes ~count ~npass ~ndiscarded ~failure =
+  if outcomes <> [] then
+    outcome_reports :=
+      Fmt.str "%s/%s: %d samples: %a" suite name npass pp_counts
+        (outcomes, count)
+      :: !outcome_reports;
+  match failure with
+  | Some status -> Alcotest.fail (Fmt.str "%a" print_status status)
+  | None -> (
+      (* A run that reached the end of its budget without ever getting past a
+         guard has checked nothing, and reporting that as a pass is
+         indistinguishable from reporting a property that held. It is how a
+         property whose guard has stopped matching what the generators produce
+         goes quiet instead of failing. *)
+      if npass = 0 then
+        Alcotest.fail
+          (Fmt.str
+             "no iteration ran: %d generated input%s rejected by a guard, and \
+              the property was never evaluated"
+             ndiscarded
+             (if ndiscarded = 1 then " was" else "s were"));
+      (* An outcome no passing sample reached is a branch the property never
+         checked: a decoder that refuses every input passes a roundtrip
+         property on every sample. *)
+      match List.filter (fun o -> count o = 0) outcomes with
+      | [] -> ()
+      | missed ->
+          Alcotest.fail
+            (Fmt.str "outcome%s %s never reached in %d samples: %a"
+               (if List.length missed = 1 then "" else "s")
+               (String.concat ", " (List.map (Fmt.str "%S") missed))
+               npass pp_counts (outcomes, count)))
 
 let run_property_test (Test { suite; name; outcomes; gens; f }) config =
   let seed =
@@ -663,7 +696,7 @@ let run_property_test (Test { suite; name; outcomes; gens; f }) config =
     let status, reached =
       try with_timeout config.timeout (fun () -> run_once outcomes gens f state)
       with Timeout ->
-        ( TestExn
+        ( Test_exn
             ( Timeout,
               Printexc.get_raw_backtrace (),
               fun ppf () -> pp ppf "<timeout after %ds>" config.timeout ),
@@ -675,48 +708,19 @@ let run_property_test (Test { suite; name; outcomes; gens; f }) config =
         Hashtbl.iter
           (fun o () -> Hashtbl.replace counts o (count o + 1))
           reached;
-        if config.verbose then Printf.printf "  pass %d\n%!" !npass
+        if config.verbose then Fmt.pr "  pass %d\n%!" !npass
     | `Bad -> incr ndiscarded
     | `Fail -> failure := Some status
   done;
-  if outcomes <> [] then
-    outcome_reports :=
-      Format.asprintf "%s/%s: %d samples: %a" suite name !npass pp_counts
-        (outcomes, count)
-      :: !outcome_reports;
-  match !failure with
-  | Some status -> Alcotest.fail (Format.asprintf "%a" print_status status)
-  | None -> (
-      (* A run that reached the end of its budget without ever getting past a
-         guard has checked nothing, and reporting that as a pass is
-         indistinguishable from reporting a property that held. It is how a
-         property whose guard has stopped matching what the generators produce
-         goes quiet instead of failing. *)
-      if !npass = 0 then
-        Alcotest.fail
-          (Printf.sprintf
-             "no iteration ran: %d generated input%s rejected by a guard, and \
-              the property was never evaluated"
-             !ndiscarded
-             (if !ndiscarded = 1 then " was" else "s were"));
-      (* An outcome no passing sample reached is a branch the property never
-         checked: a decoder that refuses every input passes a roundtrip
-         property on every sample. *)
-      match List.filter (fun o -> count o = 0) outcomes with
-      | [] -> ()
-      | missed ->
-          Alcotest.fail
-            (Format.asprintf "outcome%s %s never reached in %d samples: %a"
-               (if List.length missed = 1 then "" else "s")
-               (String.concat ", " (List.map (Printf.sprintf "%S") missed))
-               !npass pp_counts (outcomes, count)))
+  finish_property ~suite ~name ~outcomes ~count ~npass:!npass
+    ~ndiscarded:!ndiscarded ~failure:!failure
 
 (* A verdict as an Alcotest case: a failure is the test's, a [guard] or
    [bad_test] skips it. *)
 let run_verdict check (_ : config) =
   match check () with
   | () -> ()
-  | exception FailedTest p -> Alcotest.fail (Format.asprintf "%a" p ())
+  | exception FailedTest p -> Alcotest.fail (Fmt.str "%a" p ())
   | exception BadTest _ -> Alcotest.skip ()
 
 let run_with_alcotest name tests verdicts =
@@ -765,7 +769,7 @@ let run_afl tests file =
             List.nth tests (choose_int (List.length tests) state)
           in
           fst (run_once outcomes gens f state)
-        with BadTest s -> BadInput s
+        with BadTest s -> Bad_input s
       in
       Unix.close fd;
       match classify_status status with
@@ -795,14 +799,32 @@ let shortfall ~suite ~name ~good ~seeds_per_test ~attempts ~discarded ~failed =
   let reasons =
     List.filter_map
       (fun (n, what) ->
-        if n = 0 then None else Some (Printf.sprintf "%d %s" n what))
+        if n = 0 then None else Fmt.kstr (fun text -> Some text) "%d %s" n what)
       [ (discarded, "rejected by a guard"); (failed, "failed the property") ]
   in
-  Printf.sprintf "gen-corpus: %s/%s: %s after %d attempts%s\n" suite name
+  Fmt.str "gen-corpus: %s/%s: %s after %d attempts%s\n" suite name
     (if good = 0 then "no seed"
-     else Printf.sprintf "%d of %d seeds" good seeds_per_test)
+     else Fmt.str "%d of %d seeds" good seeds_per_test)
     attempts
     (match reasons with [] -> "" | l -> " (" ^ String.concat ", " l ^ ")")
+
+let report_corpus dir count shortfalls =
+  List.iter prerr_string (List.rev shortfalls);
+  flush stderr;
+  Fmt.pr "gen-corpus: wrote %d seed files to %s/\n%!" count dir;
+  (* afl-fuzz refuses an empty input directory, so stop here with the reason
+     rather than leaving it to report that the corpus it was handed is
+     unusable. *)
+  if count = 0 then (
+    prerr_endline "gen-corpus: no test could be seeded, the corpus is empty";
+    exit 1)
+
+let write_seed dir index record =
+  let filename = Fmt.str "%s/seed_%03d" dir index in
+  let channel = open_out_bin filename in
+  Fun.protect
+    ~finally:(fun () -> close_out channel)
+    (fun () -> Buffer.output_buffer channel record)
 
 let generate_corpus dir tests =
   (try Unix.mkdir dir 0o755 with Unix.Unix_error (Unix.EEXIST, _, _) -> ());
@@ -837,10 +859,7 @@ let generate_corpus dir tests =
         let status, _ = run_once outcomes gens f state in
         match classify_status status with
         | `Pass ->
-            let filename = Printf.sprintf "%s/seed_%03d" dir !count in
-            let oc = open_out_bin filename in
-            Buffer.output_buffer oc record;
-            close_out oc;
+            write_seed dir !count record;
             incr count;
             incr good
         | `Bad -> incr discarded
@@ -855,15 +874,7 @@ let generate_corpus dir tests =
             ~discarded:!discarded ~failed:!failed
           :: !shortfalls)
     tests;
-  List.iter prerr_string (List.rev !shortfalls);
-  flush stderr;
-  Printf.printf "gen-corpus: wrote %d seed files to %s/\n%!" !count dir;
-  (* afl-fuzz refuses an empty input directory, so stop here with the reason
-     rather than leaving it to report that the corpus it was handed is
-     unusable. *)
-  if !count = 0 then (
-    prerr_endline "gen-corpus: no test could be seeded, the corpus is empty";
-    exit 1)
+  report_corpus dir !count !shortfalls
 
 type test_case =
   | TC : {
@@ -884,8 +895,7 @@ let rec first_duplicate = function
 let test_case ?(outcomes = []) name gens f =
   match first_duplicate outcomes with
   | Some o ->
-      invalid_arg
-        (Printf.sprintf "Alcobar.test_case %S: outcome %S declared twice" name o)
+      Fmt.invalid_arg "Alcobar.test_case %S: outcome %S declared twice" name o
   | None -> TC { name; outcomes; gens; f }
 
 let run name suites =

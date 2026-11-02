@@ -9,15 +9,18 @@ property-based testing and the magical bug-finding powers of
 maintainer: ["Thomas Gazagnaire <thomas@gazagnaire.org>"]
 authors: ["Stephen Dolan <stephen.dolan@cl.cam.ac.uk>"]
 license: "MIT"
-homepage: "https://github.com/samoht/alcobar"
-bug-reports: "https://github.com/samoht/alcobar/issues"
+tags: ["org:blacksun" "test"]
 depends: [
   "dune" {>= "3.21"}
   "ocaml" {>= "4.11"}
   "alcotest"
+  "fmt" {>= "0.8.7"}
+  "mdx" {with-test}
+  "base-unix"
+  "re" {with-test & >= "1.11"}
   "cmdliner" {>= "1.1.0"}
   "afl-persistent" {>= "1.1"}
-  "calendar" {>= "2.00" & with-test}
+  "astring" {with-test}
   "fpath" {with-test}
   "pprint" {with-test}
   "uucp" {with-test}
@@ -39,5 +42,5 @@ build: [
     "@doc" {with-doc}
   ]
 ]
-dev-repo: "git+https://github.com/samoht/alcobar.git"
+dev-repo: "https://github.com/samoht/alcobar"
 x-maintenance-intent: ["(latest)"]

@@ -1,6 +1,6 @@
 (executable
  (name fuzz)
- (libraries uunf uutf uucp alcobar))
+ (libraries fmt uunf uutf uucp alcobar))
 
 (rule
  (alias runtest)

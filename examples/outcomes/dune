@@ -1,25 +1,20 @@
 (executables
- (names covered hollow undeclared)
+ (names hollow undeclared)
+ (modules hollow undeclared)
  (libraries alcobar))
 
 ; Each declared outcome is counted once per passing sample, and the run
 ; prints the counts. The budget is off so the repeat count alone decides how
 ; many samples run, which makes "always" exactly that count.
 
-(rule
- (alias runtest)
- (deps covered.exe)
+(test
+ (name covered)
+ (modules covered)
+ (libraries alcobar)
  (action
-  (progn
-   (with-outputs-to
-    covered.output
-    (run %{exe:covered.exe} --seed 1 --repeat 100 --budget 0))
-   (run
-    grep
-    -F
-    -q
-    "outcomes/parity: 100 samples: always 100, even "
-    covered.output))))
+  (pipe-outputs
+   (run %{test} --seed 1 --repeat 100 --budget 0)
+   (run grep -F "outcomes/parity: 100 samples: always 100, even "))))
 
 ; No sample decodes, so the run fails and says so with the counts.
 

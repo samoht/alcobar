@@ -9,7 +9,7 @@ property-based testing and the magical bug-finding powers of
 maintainer: ["Thomas Gazagnaire <thomas@gazagnaire.org>"]
 authors: ["Stephen Dolan <stephen.dolan@cl.cam.ac.uk>"]
 license: "MIT"
-tags: ["org:blacksun" "test"]
+tags: ["org:blacksun" "test" "area:graft:fuzzing"]
 depends: [
   "dune" {>= "3.21"}
   "ocaml" {>= "4.11"}

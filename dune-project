@@ -12,7 +12,7 @@
 
 (package
  (name alcobar)
- (tags (org:blacksun test))
+ (tags (org:blacksun test area:graft:fuzzing))
  (synopsis "Write tests, let a fuzzer find failing cases")
  (description
 "\| Alcobar is a library for testing code, combining QuickCheck-style

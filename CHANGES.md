@@ -3,6 +3,8 @@
 - Remove the `calendar` example, which demonstrated a bug in `calendar` and
   was not run by `dune runtest`, and the disabled `xmldiff` one: `calendar` is
   no longer a test dependency (@samoht)
+- Print with `Fmt` rather than `Format` and `Printf`: alcobar now depends on
+  `fmt`, which alcotest already depends on (@samoht)
 
 ## v0.4.0 (23/10/2026)
 

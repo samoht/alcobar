@@ -20,19 +20,19 @@ let norm form str =
   in
   go [] str
 
-let unicode_to_string s =
+let string_of_unicode s =
   let b = Buffer.create 10 in
   List.iter (Uutf.Buffer.add_utf_8 b) s;
   Buffer.contents b
 
 let pp_unicode ppf s =
-  Format.fprintf ppf "@[<v 2>";
-  Format.fprintf ppf "@[\"%s\"@]@ " (unicode_to_string s);
+  Fmt.pf ppf "@[<v 2>";
+  Fmt.pf ppf "@[\"%s\"@]@ " (string_of_unicode s);
   s
   |> List.iter (fun u ->
-      Format.fprintf ppf "@[U+%04x %s (%a)@]@ " (Uchar.to_int u)
-        (Uucp.Name.name u) Uucp.Block.pp (Uucp.Block.block u));
-  Format.fprintf ppf "@]\n"
+      Fmt.pf ppf "@[U+%04x %s (%a)@]@ " (Uchar.to_int u) (Uucp.Name.name u)
+        Uucp.Block.pp (Uucp.Block.block u));
+  Fmt.pf ppf "@]\n"
 
 let unicode = with_printer pp_unicode unicode
 
@@ -43,8 +43,8 @@ let test_uunf =
   let nfkc = norm `NFKC s in
   let nfkd = norm `NFKD s in
   (*    [s; nfc; nfd; nfkc; nfkd] |> List.iter (fun s ->
-    Printf.printf "[%s]\n" (unicode_to_string s));
-    Printf.printf "\n%!";*)
+    Fmt.pr "[%s]\n" (string_of_unicode s));
+    Fmt.pr "\n%!";*)
 
   let tests =
     [

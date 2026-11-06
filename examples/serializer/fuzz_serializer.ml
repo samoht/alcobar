@@ -43,7 +43,8 @@ let rec printer_of_ty : type a. a S.ty -> a printer = function
 let check_pair (Pair (t, v)) =
   let data = S.serialize t v in
   match S.deserialize t data with
-  | exception _ -> fail "incorrect deserialization"
+  | exception (S.Bad_data | Failure _ | Invalid_argument _) ->
+      fail "incorrect deserialization"
   | v' -> check_eq ~pp:(printer_of_ty t) v v'
 
 let test_pairs = test_case "pairs" [ pair_gen ] check_pair

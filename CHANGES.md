@@ -9,6 +9,8 @@
   no longer a test dependency (@samoht)
 - Print with `Fmt` rather than `Format` and `Printf`: alcobar now depends on
   `fmt`, which alcotest already depends on (@samoht)
+- Depend on `base-unix` for the `unix` library alcobar calls, rather than
+  reaching it through afl-persistent (@samoht)
 
 ## v0.4.0 (23/10/2026)
 

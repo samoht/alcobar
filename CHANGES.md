@@ -1,3 +1,9 @@
+## unreleased
+
+- Remove the `calendar` example, which demonstrated a bug in `calendar` and
+  was not run by `dune runtest`, and the disabled `xmldiff` one: `calendar` is
+  no longer a test dependency (@samoht)
+
 ## v0.4.0 (23/10/2026)
 
 - Drop OCaml 4.08 to 4.10, which opam-repository no longer carries: alcobar

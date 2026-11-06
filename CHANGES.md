@@ -4,6 +4,9 @@
   Windows lacks, and every property failed with `Sys.signal: unavailable
   signal`; there iterations now run with no timeout, bounded by `--budget`
   (@samoht)
+- Remove the `calendar` example, which demonstrated a bug in `calendar` and
+  was not run by `dune runtest`, and the disabled `xmldiff` one: `calendar` is
+  no longer a test dependency (@samoht)
 
 ## v0.4.0 (23/10/2026)
 

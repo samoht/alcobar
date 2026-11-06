@@ -19,6 +19,8 @@
  (depends
   (ocaml (>= "4.11"))
   (alcotest (>= "1.7.0"))
+  (fmt (>= 0.8.7))
+  (re (and :with-test (>= 1.11)))
   (cmdliner (>= 1.1.0))
   (afl-persistent (>= "1.1"))
   ("fpath" :with-test)

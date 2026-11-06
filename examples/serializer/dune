@@ -1,6 +1,6 @@
 (executable
  (name fuzz)
- (libraries alcobar))
+ (libraries fmt alcobar))
 
 (rule
  (alias runtest)

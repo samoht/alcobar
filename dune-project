@@ -1,4 +1,5 @@
 (lang dune 3.21)
+(using mdx 0.4)
 (name alcobar)
 
 (generate_opam_files true)
@@ -20,6 +21,7 @@
   (ocaml (>= "4.11"))
   (alcotest (>= "1.7.0"))
   (fmt (>= 0.8.7))
+  (mdx :with-test)
   (re (and :with-test (>= 1.11)))
   (cmdliner (>= 1.1.0))
   (afl-persistent (>= "1.1"))

@@ -1,3 +1,7 @@
 (library
  (public_name alcobar)
  (libraries alcotest cmdliner afl-persistent fmt))
+
+(mdx
+ (files alcobar.mli)
+ (libraries alcobar))

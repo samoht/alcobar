@@ -12,12 +12,11 @@ See [`examples/`](./examples) for full test programs.
 
 A test is a value of type `test_case`, grouped into suites, and run via `run`:
 
+<!-- $MDX file=examples/readme/main.ml -->
 ```ocaml
 open Alcobar
 
-let identity =
-  test_case "identity" [ int ] (fun x -> check_eq x x)
-
+let identity = test_case "identity" [ int ] (fun x -> check_eq x x)
 let () = run "my_lib" [ ("arith", [ identity ]) ]
 ```
 
@@ -32,6 +31,7 @@ decoder that refuses every generated input is green and tests nothing. A
 test case can name its outcomes, and the property reports the one each
 sample reaches with `reach`:
 
+<!-- $MDX file=examples/readme/reached.ml,part=roundtrip -->
 ```ocaml
 let roundtrip buf =
   match Foo.decode buf with
@@ -41,7 +41,11 @@ let roundtrip buf =
       check_eq (Foo.decode (Foo.encode v)) (Ok v)
 
 let suite =
-  ("foo", [ test_case ~outcomes:[ "decoded"; "refused" ] "roundtrip" [ bytes ] roundtrip ])
+  ( "foo",
+    [
+      test_case ~outcomes:[ "decoded"; "refused" ] "roundtrip" [ bytes ]
+        roundtrip;
+    ] )
 ```
 
 A property run counts the passing samples that reached each outcome, prints
@@ -64,6 +68,7 @@ cannot be a test case, because under AFL every test case is offered inputs,
 and a check over counts kept between samples would read whatever earlier
 inputs left. Declare it with `verdict` instead:
 
+<!-- $MDX file=examples/readme/campaign.ml,part=campaign -->
 ```ocaml
 let decoded = ref 0
 
@@ -79,7 +84,10 @@ let enough_decoded () =
 
 let suite =
   ( "foo",
-    [ test_case "roundtrip" [ bytes ] roundtrip; verdict "decoded" enough_decoded ] )
+    [
+      test_case "roundtrip" [ bytes ] roundtrip;
+      verdict "decoded" enough_decoded;
+    ] )
 ```
 
 An Alcotest run runs each verdict once, after every property, as a test of a

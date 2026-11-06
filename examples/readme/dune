@@ -1,0 +1,7 @@
+; The programs the README shows, compiled so that its examples stay correct.
+; They are not run: the property examples decode random bytes as decimal
+; integers, which few samples are, so whether they pass depends on the seed.
+
+(executables
+ (names main reached campaign)
+ (libraries alcobar))

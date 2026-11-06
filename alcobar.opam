@@ -9,6 +9,7 @@ property-based testing and the magical bug-finding powers of
 maintainer: ["Thomas Gazagnaire <thomas@gazagnaire.org>"]
 authors: ["Stephen Dolan <stephen.dolan@cl.cam.ac.uk>"]
 license: "MIT"
+tags: ["org:blacksun" "test" "area:graft:fuzzing"]
 homepage: "https://github.com/samoht/alcobar"
 bug-reports: "https://github.com/samoht/alcobar/issues"
 depends: [

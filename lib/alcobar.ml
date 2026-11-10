@@ -623,18 +623,23 @@ let config_term ~gen_corpus =
     const config $ seed $ repeat $ verbose $ infinite $ timeout $ budget
     $ corpus)
 
+(* The timeout is a SIGALRM, which Windows does not have: [Sys.signal] raises
+   [Invalid_argument] there. Such a system runs each iteration with no timeout;
+   [--budget] still bounds the whole test. *)
 let with_timeout timeout f =
   if timeout <= 0 then f ()
   else
-    let old_handler =
+    match
       Sys.signal Sys.sigalrm (Sys.Signal_handle (fun _ -> raise Timeout))
-    in
-    let old_alarm = Unix.alarm timeout in
-    Fun.protect
-      ~finally:(fun () ->
-        ignore (Unix.alarm old_alarm);
-        Sys.set_signal Sys.sigalrm old_handler)
-      f
+    with
+    | exception Invalid_argument _ -> f ()
+    | old_handler ->
+        let old_alarm = Unix.alarm timeout in
+        Fun.protect
+          ~finally:(fun () ->
+            ignore (Unix.alarm old_alarm);
+            Sys.set_signal Sys.sigalrm old_handler)
+          f
 
 let pp_counts ppf (outcomes, count) =
   pp ppf "%s"

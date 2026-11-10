@@ -1,3 +1,10 @@
+## unreleased
+
+- Run properties on Windows: the per-iteration `--timeout` is a SIGALRM, which
+  Windows lacks, and every property failed with `Sys.signal: unavailable
+  signal`; there iterations now run with no timeout, bounded by `--budget`
+  (@samoht)
+
 ## v0.4.0 (23/10/2026)
 
 - Drop OCaml 4.08 to 4.10, which opam-repository no longer carries: alcobar

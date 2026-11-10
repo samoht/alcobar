@@ -1,0 +1,31 @@
+(executable
+ (name fuzz)
+ (libraries alcobar unix))
+
+; Where SIGALRM exists the iteration is cut short and the run fails.
+
+(rule
+ (alias runtest)
+ (enabled_if
+  (<> %{os_type} Win32))
+ (deps fuzz.exe)
+ (action
+  (with-accepted-exit-codes
+   1
+   (with-outputs-to
+    timeout.output
+    (run %{exe:fuzz.exe} -r 1 --timeout 1)))))
+
+; Windows has no SIGALRM: the same run has no per-iteration timeout, so the
+; iteration completes and the run passes rather than failing to install the
+; handler.
+
+(rule
+ (alias runtest)
+ (enabled_if
+  (= %{os_type} Win32))
+ (deps fuzz.exe)
+ (action
+  (with-outputs-to
+   timeout.output
+   (run %{exe:fuzz.exe} -r 1 --timeout 1))))

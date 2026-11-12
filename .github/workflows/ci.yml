@@ -27,6 +27,11 @@ jobs:
             ocaml-compiler: '5.4'
 
     steps:
+      # Keep LF line endings, as in the release tarball: mdx misreads CRLF
+      # sources.
+      - if: runner.os == 'Windows'
+        run: git config --global core.autocrlf false
+
       - uses: actions/checkout@v5
 
       - uses: ocaml/setup-ocaml@v3

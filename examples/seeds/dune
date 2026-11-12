@@ -4,6 +4,7 @@
 
 ; Each seed --gen-corpus writes, run as an AFL input, runs the case it was
 ; generated for: five seeds of each case, in the order they were written.
+; The rule uses no shell, so that it runs on Windows too.
 
 (rule
  (alias runtest)
@@ -11,11 +12,23 @@
  (action
   (progn
    (with-stdout-to
+    gen-corpus.output
+    (run %{exe:two.exe} --gen-corpus corpus))
+   (with-stdout-to
     replay.output
-    (system
-     "./two.exe --gen-corpus corpus > /dev/null && for seed in corpus/*; do ./two.exe $seed; done"))
+    (progn
+     (run %{exe:two.exe} corpus/seed_000)
+     (run %{exe:two.exe} corpus/seed_001)
+     (run %{exe:two.exe} corpus/seed_002)
+     (run %{exe:two.exe} corpus/seed_003)
+     (run %{exe:two.exe} corpus/seed_004)
+     (run %{exe:two.exe} corpus/seed_005)
+     (run %{exe:two.exe} corpus/seed_006)
+     (run %{exe:two.exe} corpus/seed_007)
+     (run %{exe:two.exe} corpus/seed_008)
+     (run %{exe:two.exe} corpus/seed_009)))
    (with-stdout-to
     replay.expected
     (echo
      "first\nfirst\nfirst\nfirst\nfirst\nsecond\nsecond\nsecond\nsecond\nsecond\n"))
-   (run diff replay.expected replay.output))))
+   (diff replay.expected replay.output))))

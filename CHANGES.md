@@ -1,3 +1,9 @@
+## unreleased
+
+- Run the tests on Windows: the `seeds` example ran a POSIX shell line
+  through `(system ...)`, which dune hands to `cmd.exe` there, so
+  `dune runtest` failed on every Windows build (@samoht)
+
 ## v0.5.0 (12/11/2026)
 
 - Run properties on Windows: the per-iteration `--timeout` is a SIGALRM, which

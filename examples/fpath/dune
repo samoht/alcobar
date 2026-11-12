@@ -1,6 +1,6 @@
 (executable
  (name fuzz)
- (libraries alcobar fpath))
+ (libraries alcobar fpath astring))
 
 (rule
  (alias runtest)

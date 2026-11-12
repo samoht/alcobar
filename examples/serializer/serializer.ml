@@ -9,7 +9,7 @@ type _ ty =
 
 let rec pp_ty : type a. _ -> a ty -> unit =
  fun ppf ->
-  let printf fmt = Format.fprintf ppf fmt in
+  let printf fmt = Fmt.pf ppf fmt in
   function
   | Int -> printf "Int"
   | Bool -> printf "Bool"

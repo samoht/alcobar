@@ -1,4 +1,6 @@
 (lang dune 3.21)
+(using mdx 0.4)
+(implicit_transitive_deps false)
 (name alcobar)
 
 (generate_opam_files true)
@@ -19,9 +21,13 @@
  (depends
   (ocaml (>= "4.11"))
   (alcotest (>= "1.7.0"))
+  (fmt (>= 0.8.7))
+  base-unix
+  (mdx :with-test)
+  (re (and :with-test (>= 1.11)))
   (cmdliner (>= 1.1.0))
   (afl-persistent (>= "1.1"))
-  ("calendar" (and (>= "2.00") :with-test))
+  ("astring" :with-test)
   ("fpath" :with-test)
   ("pprint" :with-test)
   ("uucp" :with-test)

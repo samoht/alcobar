@@ -7,16 +7,24 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
 
     strategy:
       fail-fast: false
       matrix:
+        os: [ubuntu-latest]
         # 4.11 is the lower bound in dune-project, the oldest compiler left in
         # opam-repository; 4.14 is the last 4.x. The PRNG differs between 4.x
         # and 5.x, so tests that pass on one line of compilers can fail on the
         # other.
         ocaml-compiler: ['4.11', '4.14', '5.4']
+        # opam-repository's CI runs the tests on Windows, which has no SIGALRM
+        # and runs (system ...) actions with cmd.exe.
+        include:
+          - os: windows-latest
+            ocaml-compiler: '4.14'
+          - os: windows-latest
+            ocaml-compiler: '5.4'
 
     steps:
       - uses: actions/checkout@v5

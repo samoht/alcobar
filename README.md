@@ -1,16 +1,18 @@
 # Alcobar
 
-**Alcobar** is Crowbar with an [Alcotest](https://github.com/mirage/alcotest)-compatible
-API. Like Crowbar, it combines QuickCheck-style property-based testing with the
-bug-finding powers of [afl-fuzz](http://lcamtuf.coredump.cx/afl/). Unlike Crowbar,
-it surfaces tests as Alcotest test cases, so they integrate with the rest of an
-Alcotest suite.
+Alcobar is a fork of [Crowbar](https://github.com/stedolan/crowbar) whose
+tests are [Alcotest](https://github.com/mirage/alcotest) test cases. A test is
+a property over generated inputs, as in QuickCheck. Run as a test suite, the
+binary draws those inputs from a random generator. Run under
+[afl-fuzz](https://github.com/AFLplusplus/AFLplusplus), it draws them from the
+bytes the fuzzer supplies, so AFL's coverage feedback steers the search.
 
-See [`examples/`](./examples) for full test programs.
+The [`examples/`](./examples) directory holds complete test programs.
 
 ## Writing tests
 
-A test is a value of type `test_case`, grouped into suites, and run via `run`:
+A test case names a property and the generators of its arguments. `run`
+groups test cases into suites, as `Alcotest.run` does:
 
 ```ocaml
 open Alcobar
@@ -21,16 +23,16 @@ let identity =
 let () = run "my_lib" [ ("arith", [ identity ]) ]
 ```
 
-This mirrors [`Alcotest.run`](https://mirage.github.io/alcotest): the first
-argument names the run, the second is a list of `(suite_name, tests)` pairs.
+The first argument of `run` names the run, and the second is a list of
+`(suite_name, tests)` pairs.
 
-## Naming the outcomes a property reaches
+## Outcomes
 
-A property that returns `()` on every branch passes whether or not its
-samples ever take the branch that checks something. A roundtrip test over a
-decoder that refuses every generated input is green and tests nothing. A
-test case can name its outcomes, and the property reports the one each
-sample reaches with `reach`:
+A property that returns `()` on every branch passes even if no sample ever
+takes the branch that checks something. A roundtrip test over a decoder that
+refuses every generated input is green and tests nothing. To catch this, a
+test case declares its outcomes, and the property calls `reach` with the one
+each sample takes:
 
 ```ocaml
 let roundtrip buf =
@@ -44,25 +46,24 @@ let suite =
   ("foo", [ test_case ~outcomes:[ "decoded"; "refused" ] "roundtrip" [ bytes ] roundtrip ])
 ```
 
-A property run counts the passing samples that reached each outcome, prints
-the counts after the Alcotest report, and fails the test when an outcome was
-reached by no passing sample:
+After the Alcotest report, the run prints how many passing samples reached
+each outcome. It fails the test if no passing sample reached one of them:
 
 ```
 Outcomes reached:
   foo/roundtrip: 5000 samples: decoded 0, refused 5000
 ```
 
-`reach` with an outcome the test case does not declare fails that sample, so
-a misspelt outcome is reported where it is reached.
+Calling `reach` with an outcome the test case does not declare fails that
+sample, so a misspelt name is reported where it is used.
 
-## Checking a whole campaign
+## Verdicts
 
-Some checks are about the run, not about one sample: a floor on how many
-samples were decoded, or a share of inputs a parser must accept. Such a check
-cannot be a test case, because under AFL every test case is offered inputs,
-and a check over counts kept between samples would read whatever earlier
-inputs left. Declare it with `verdict` instead:
+Some checks look at the run as a whole: a floor on the number of decoded
+samples, or the share of inputs a parser must accept. Such a check cannot be
+a test case. Under AFL every test case is offered inputs, and a check over
+counters kept across samples would read whatever earlier inputs left behind.
+Declare it with `verdict` instead:
 
 ```ocaml
 let decoded = ref 0
@@ -82,43 +83,43 @@ let suite =
     [ test_case "roundtrip" [ bytes ] roundtrip; verdict "decoded" enough_decoded ] )
 ```
 
-An Alcotest run runs each verdict once, after every property, as a test of a
-last group named `verdict`; `fail` or `check` in it fails that test. AFL and
-`--gen-corpus` never run a verdict.
+An Alcotest run calls each verdict once, after every property, as a test in
+a final group named `verdict`. A `fail` or `check` inside it fails that test.
+AFL runs and `--gen-corpus` never call a verdict.
 
 ## Running tests
 
-Every alcobar test binary supports three modes, detected automatically:
+A test binary has three modes, chosen from its command line.
 
-- **Alcotest mode (default)**: run as a regular test suite. Supports all of
-  Alcotest's CLI flags (filtering, verbose, etc.) as well as:
-  - `--seed INT64`: fix the PRNG seed
-  - `--repeat N`: iterations per test (default: 5000)
-  - `--timeout N`: per-iteration timeout in seconds (default: 2; also reads
-    `ALCOBAR_TIMEOUT`). It is a SIGALRM, so on Windows iterations run with no
-    timeout and only `--budget` bounds the test
-  - `--budget SECONDS`: total wall-clock budget per test (default: 2)
-  - `--infinite` / `-i`: run until a failure is found
-  - `--alcobar-verbose`: log each passing iteration
+**As a test suite**, the default, it takes Alcotest's options (test filters,
+`--verbose` and the others) and these:
 
-- **Seed corpus mode**: pass `--gen-corpus DIR`. Alcobar runs each test a few
-  times and writes to `DIR/seed_NNN` the bytes AFL mode reads to choose that
-  test, then the exact bytes its generators consumed, so each seed runs the
-  test it was generated for. Use these to seed `afl-fuzz`. The first bytes
-  pick a test by its position in the suite, so regenerate the corpus when you
-  add, remove or reorder tests.
+- `--seed INT64` (`-s`) fixes the random seed.
+- `--repeat N` (`-r`) sets the number of samples per test (default 5000).
+- `--timeout N` bounds each sample, in seconds (default 2, or the value of
+  `ALCOBAR_TIMEOUT`). The bound uses SIGALRM, so on Windows samples run with
+  no bound and only `--budget` limits a test.
+- `--budget SECONDS` bounds the wall-clock time of each test (default 2).
+- `--infinite` (`-i`) runs until a test fails.
+- `--alcobar-verbose` logs every passing sample.
 
-- **AFL mode**: pass a file as the last argument. Alcobar reads from that file
-  and drives a single test iteration: the form `afl-fuzz` expects when
-  invoked as `afl-fuzz -i in -o out -- ./my_test.exe @@`.
+**To make a seed corpus**, pass `--gen-corpus DIR`. Alcobar runs each test a
+few times and writes one file per run, `DIR/seed_NNN`. A file starts with the
+bytes that select its test in AFL mode, followed by the bytes its generators
+consumed, so each seed replays the test it came from. The selector is the
+test's position in the suite, so regenerate the corpus after you add, remove
+or reorder tests.
 
-To run under AFL you need a compiler with AFL instrumentation enabled (an
-`opam` switch tagged `+afl`). Build a native-code executable, not bytecode.
+**Under AFL**, pass an input file as the last argument. Alcobar reads its
+input from that file and runs one sample.
+`afl-fuzz -i in -o out -- ./my_test.exe @@` calls the binary in this form.
+AFL needs a native-code executable built with AFL instrumentation, from an
+`opam` switch tagged `+afl` or with the dune profile below.
 
-### Fuzzing with dune and afl-fuzz
+### Fuzzing with dune
 
-Instead of a `+afl` switch, a dune profile can instrument the build. In
-`dune-workspace` (or the root `dune` file):
+A dune profile can add the instrumentation instead of a `+afl` switch. In
+`dune-workspace` or the root `dune` file:
 
 ```dune
 (env
@@ -126,9 +127,9 @@ Instead of a `+afl` switch, a dune profile can instrument the build. In
   (ocamlopt_flags (:standard -afl-instrument))))
 ```
 
-Then give the fuzz executable two rules: a quick property run in
-`dune test`, and an `afl-fuzz` campaign under the `afl` profile, seeded by
-`--gen-corpus`:
+The fuzz executable then gets two rules. The first runs the properties under
+`dune test`. The second, under the `afl` profile, writes a seed corpus and
+starts `afl-fuzz` on it:
 
 ```dune
 (executable
@@ -149,13 +150,13 @@ Then give the fuzz executable two rules: a quick property run in
    (run afl-fuzz -V 60 -i corpus -o _fuzz -- %{exe:fuzz.exe} @@))))
 ```
 
-`dune test` runs the properties; `dune build @fuzz --profile afl` fuzzes for
-60 seconds (`-V`) and leaves AFL's findings in `_build/default/<dir>/_fuzz`.
+`dune build @fuzz --profile afl` then fuzzes for 60 seconds (`-V 60`) and
+leaves AFL's findings in `_build/default/<dir>/_fuzz`.
 
-## Relation to Crowbar
+## Differences from Crowbar
 
-Alcobar is a fork of [stedolan/crowbar](https://github.com/stedolan/crowbar).
-The generator API (`int`, `map`, `choose`, `fix`, `dynamic_bind`, ...) is
-unchanged. The testing API is different: `add_test` is replaced by `test_case`
-and an explicit `run`, and the runner embeds an Alcotest suite rather than
-invoking Cmdliner directly.
+The generators (`int`, `map`, `choose`, `fix`, `dynamic_bind` and the rest)
+are Crowbar's. Tests are declared with `test_case` and run with an explicit
+`run`, where Crowbar has `add_test`, and the runner is an Alcotest suite
+instead of a Cmdliner command of its own. Outcomes and verdicts are new in
+Alcobar.

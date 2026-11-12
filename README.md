@@ -95,7 +95,8 @@ Every alcobar test binary supports three modes, detected automatically:
   - `--seed INT64`: fix the PRNG seed
   - `--repeat N`: iterations per test (default: 5000)
   - `--timeout N`: per-iteration timeout in seconds (default: 2; also reads
-    `ALCOBAR_TIMEOUT`)
+    `ALCOBAR_TIMEOUT`). It is a SIGALRM, so on Windows iterations run with no
+    timeout and only `--budget` bounds the test
   - `--budget SECONDS`: total wall-clock budget per test (default: 2)
   - `--infinite` / `-i`: run until a failure is found
   - `--alcobar-verbose`: log each passing iteration
